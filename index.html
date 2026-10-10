@@ -169,13 +169,26 @@ function audit(actorId, battleId, kind, text){
 
 /* ---------------- Bet engine ---------------- */
 function splitStake(stake){ const w = +(stake*0.8).toFixed(2), p = +(stake*0.2).toFixed(2); return {wager:w, pot:p}; }
+/* Winnings on a wager at American odds (stake NOT included). */
+function winnings(wager, americanOdds){
+  const o = americanOdds==null ? -110 : +americanOdds;
+  const w = o>0 ? wager*(o/100) : wager*(100/Math.abs(o));
+  return +w.toFixed(2);
+}
+function fmtOdds(o){ o=+o; return (o>0?'+':'')+o; }
 
 function createBet(o){
   // o: {mode, eventId, league, homeAbbr, awayAbbr, homeName, awayName, eventDate,
-  //     market, selection, line, consensusLine, lineSource, stake, customLine?}
+  //     market, selection, line, odds, oppOdds, consensusLine, lineSource, stake, customLine?}
+  // REFINED MODEL: a challenge = TWO independent house bets (one per battler, at
+  // real odds) + ONE linked head-to-head pot. No-challenge = full stake vs house.
   const u = me(); if(!u) throw new Error('no-user');
-  const {wager, pot} = splitStake(o.stake);
   if(u.credits < o.stake) throw new Error('insufficient');
+  const isChallenge = o.mode==='challenge';
+  const wager = isChallenge ? +(o.stake*0.8).toFixed(2) : +(+o.stake).toFixed(2);
+  const pot = isChallenge ? +(o.stake*0.2).toFixed(2) : 0;
+  const odds = o.odds==null ? -110 : +o.odds;
+  const oppOdds = o.oppOdds==null ? -110 : +o.oppOdds;
   const bet = {
     id:'BB-'+(++DB.seq).toString().padStart(5,'0')+'-'+Math.random().toString(36).slice(2,6).toUpperCase(),
     createdAt:new Date().toISOString(),
@@ -186,7 +199,9 @@ function createBet(o){
     eventDate:o.eventDate,
     market:o.market,            // 'spread'|'total'|'moneyline'
     selection:o.selection,      // 'home'|'away'|'over'|'under'
-    line:o.line,                // locked line at creation (home-spread convention for spread)
+    line:o.line,                // locked line at creation (home-spread convention for spread; ML odds for moneyline)
+    odds, oppOdds,              // American odds: creator's side / opposite side (challenge taker's)
+    takerOdds:null,             // set when a taker accepts (= oppOdds)
     consensusLine:o.consensusLine, lineSource:o.lineSource||'espn', customLine:!!o.customLine,
     takerId:null, takerName:null,
     stake:o.stake, wager, potShare:pot,
@@ -194,7 +209,10 @@ function createBet(o){
     grade:null, dispute:null, settledAt:null,
   };
   DB.bets.push(bet);
-  postLedger(u.id, bet.id, 'stake_placed', -o.stake, `Staked ${fmt$(o.stake)} (${fmt$(wager)} wager + ${fmt$(pot)} pot) on ${describeSelection(bet)}`);
+  const stakeNote = isChallenge
+    ? `Staked ${fmt$(o.stake)} on ${describeSelection(bet)} — leg 1: ${fmt$(wager)} house bet @ ${fmtOdds(odds)} · leg 2: ${fmt$(pot)} challenge pot`
+    : `Staked ${fmt$(o.stake)} on ${describeSelection(bet)} @ ${fmtOdds(odds)} vs house`;
+  postLedger(u.id, bet.id, 'stake_placed', -o.stake, stakeNote);
   audit(u.id, bet.id, 'bet_created', `${u.name} created ${o.mode} bet ${bet.id}: ${describeSelection(bet)} @ ${fmt$(o.stake)} (line ${o.line}, source ${o.lineSource}).`);
   saveDB(); return bet;
 }
@@ -205,6 +223,7 @@ function acceptChallenge(betId){
   if(u.credits < bet.stake) throw new Error('insufficient');
   bet.takerId = u.id; bet.takerName = u.name; bet.status = 'matched';
   bet.takerSelection = oppositeSelection(bet.market, bet.selection);
+  bet.takerOdds = bet.oppOdds; // taker's house leg is priced at the opposite side's odds
   postLedger(u.id, bet.id, 'stake_placed', -bet.stake, `Accepted challenge ${bet.id}: ${describeSelectionFor(bet, bet.takerSelection)} @ ${fmt$(bet.stake)}`);
   audit(u.id, bet.id, 'challenge_accepted', `${u.name} took the other side (${describeSelectionFor(bet, bet.takerSelection)}). Battle is matched.`);
   saveDB(); return bet;
@@ -243,43 +262,75 @@ function gradeSelection(bet, homeScore, awayScore){
   return bet.selection===winner?'win':'loss';
 }
 
-/* Settle a bet from a final score. Writes ledger + audit. Idempotent. */
+/* Settle a bet from a final score. Writes ledger + audit. Idempotent.
+   REFINED MODEL:
+   - house mode: full stake is ONE standard house bet at real odds.
+   - challenge: TWO independent house bets (creator's leg + taker's leg, each at
+     their own odds) + ONE winner-take-all challenge pot (both 20% shares).
+   - push: every leg pushes — full refunds. void: full refunds. */
 function settleBet(bet, homeScore, awayScore, source){
   if(bet.status==='settled'||bet.status==='void') return bet;
   const res = gradeSelection(bet, homeScore, awayScore);
-  const creatorWon = res==='win', push = res==='push';
   bet.grade = { result:res, homeScore:+homeScore, awayScore:+awayScore, source, gradedAt:new Date().toISOString(), rule: gradeRuleText(bet,res) };
-  const potTotal = +(bet.potShare * (bet.mode==='challenge'?2:1)).toFixed(2);
-  if(push){
-    // stakes returned to everyone
-    postLedger(bet.creatorId, bet.id, 'refund_push', bet.stake, `Push — stake returned`);
-    if(bet.takerId) postLedger(bet.takerId, bet.id, 'refund_push', bet.stake, `Push — stake returned`);
-    bet._houseDelta = 0;
-    audit('system', bet.id, 'graded', ` graded PUSH (${homeScore}-${awayScore}, ${source}). Stakes returned.`);
-  } else if(bet.mode==='house'){
-    if(creatorWon){
-      postLedger(bet.creatorId, bet.id, 'payout_wager', +(2*bet.wager).toFixed(2), `Won vs house — wager paid out`);
-      postLedger(bet.creatorId, bet.id, 'pot_win', bet.potShare, `Won vs house — pot returned`);
-      bet._houseDelta = -bet.wager;
-      houseTake(-bet.wager, bet.id, `paid winner ${bet.creatorName}`);
-    } else {
-      bet._houseDelta = bet.stake;
-      houseTake(bet.stake, bet.id, `${bet.creatorName} lost vs house`);
-    }
-    audit('system', bet.id, 'graded', `graded ${res.toUpperCase()} vs house (${homeScore}-${awayScore}, ${source}). ${gradeRuleText(bet,res)}`);
-  } else {
-    // challenge: winner gets own wager back + whole pot; loser's wager → house
-    const winnerId = creatorWon ? bet.creatorId : bet.takerId;
-    const loserId  = creatorWon ? bet.takerId : bet.creatorId;
-    postLedger(winnerId, bet.id, 'payout_wager', bet.wager, `Won battle — wager returned`);
-    postLedger(winnerId, bet.id, 'pot_win', potTotal, `Won battle — takes the ${fmt$(potTotal)} pot`);
-    bet._houseDelta = bet.wager;
-    houseTake(bet.wager, bet.id, `loser's wager → house`);
-    audit('system', bet.id, 'graded', `graded ${creatorWon?'CREATOR':'TAKER'} WINS (${homeScore}-${awayScore}, ${source}). ${gradeRuleText(bet,res)} Winner ${DB.users[winnerId].name} +${fmt$(bet.wager+potTotal)}.`);
-  }
+  applySettlement(bet, res);
   bet.status='settled'; bet.settledAt=new Date().toISOString();
   recordSettled(bet, res);
   saveDB(); return bet;
+}
+/* Grade one house-bet leg. Returns {wager, odds, result, payout, houseDelta}.
+   houseDelta is the HOUSE's P&L on the leg: +wager when the house keeps a
+   losing stake, −winnings when the house pays a winner, 0 on push. */
+function settleHouseLeg(userId, bet, wager, odds, result){
+  const w = +wager.toFixed(2);
+  if(result==='win'){
+    const win = winnings(w, odds);
+    const payout = +(w + win).toFixed(2);
+    postLedger(userId, bet.id, 'housebet_payout', payout,
+      `House bet won @ ${fmtOdds(odds)} — ${fmt$(w)} back + ${fmt$(win)} winnings`);
+    return { wager:w, odds:+odds, result, payout, houseDelta:+(-win).toFixed(2) };
+  }
+  if(result==='push'){
+    postLedger(userId, bet.id, 'housebet_refund_push', w, `House bet pushed — ${fmt$(w)} returned`);
+    return { wager:w, odds:+odds, result, payout:w, houseDelta:0 };
+  }
+  return { wager:w, odds:+odds, result, payout:0, houseDelta:w }; // house keeps the stake
+}
+/* Full push refund for one battler: house leg back + pot share back (challenge). */
+function refundLegPush(userId, bet){
+  postLedger(userId, bet.id, 'housebet_refund_push', +bet.wager.toFixed(2), `Push — house-bet leg ${fmt$(bet.wager)} returned`);
+  if(bet.mode==='challenge' && bet.potShare>0)
+    postLedger(userId, bet.id, 'pot_refund_push', +bet.potShare.toFixed(2), `Push — challenge pot share ${fmt$(bet.potShare)} returned`);
+}
+function applySettlement(bet, res, hs, as){
+  // res: creator's selection result ('win'|'loss'|'push'). Taker's result is the
+  // complement (opposite side, same event) — the pot keys off the same outcome.
+  // hs/as: fallback scores when re-settling after a dispute overturn (grade was reversed).
+  const g = bet.grade || { homeScore:hs??0, awayScore:as??0, source:'dispute-overturn' };
+  const legs = {};
+  let houseDelta = 0, potPaid = 0, potWinner = null;
+  if(res==='push'){
+    refundLegPush(bet.creatorId, bet);
+    if(bet.takerId) refundLegPush(bet.takerId, bet);
+    audit('system', bet.id, 'graded', `graded PUSH (${g.homeScore}-${g.awayScore}, ${g.source}). All legs refunded in full.`);
+  } else if(bet.mode==='house'){
+    const L = settleHouseLeg(bet.creatorId, bet, bet.wager, bet.odds, res);
+    legs.creator = L; houseDelta = L.houseDelta;
+    audit('system', bet.id, 'graded', `graded ${res.toUpperCase()} vs house (${g.homeScore}-${g.awayScore}, ${g.source}). ${gradeRuleText(bet,res)} Leg: ${fmt$(L.wager)} @ ${fmtOdds(L.odds)} → payout ${fmt$(L.payout)}.`);
+  } else {
+    const takerRes = res==='win' ? 'loss' : 'win';
+    const Lc = settleHouseLeg(bet.creatorId, bet, bet.wager, bet.odds, res);
+    const Lt = settleHouseLeg(bet.takerId, bet, bet.wager, bet.takerOdds, takerRes);
+    legs.creator = Lc; legs.taker = Lt;
+    houseDelta = +(Lc.houseDelta + Lt.houseDelta).toFixed(2);
+    const potTotal = +(bet.potShare*2).toFixed(2);
+    potWinner = res==='win' ? bet.creatorId : bet.takerId;
+    postLedger(potWinner, bet.id, 'pot_win', potTotal, `Won the battle — takes the ${fmt$(potTotal)} challenge pot`);
+    potPaid = potTotal;
+    audit('system', bet.id, 'graded', `graded ${res==='win'?'CREATOR':'TAKER'} WINS (${g.homeScore}-${g.awayScore}, ${g.source}). ${gradeRuleText(bet,res)} Legs: creator ${fmt$(Lc.wager)} @ ${fmtOdds(Lc.odds)} → ${Lc.result} (${fmt$(Lc.payout)}); taker ${fmt$(Lt.wager)} @ ${fmtOdds(Lt.odds)} → ${Lt.result} (${fmt$(Lt.payout)}). Pot ${fmt$(potTotal)} → ${DB.users[potWinner].name}.`);
+  }
+  bet._legs = legs; bet._potPaid = potPaid; bet._houseDelta = +houseDelta.toFixed(2);
+  if(houseDelta!==0) houseTake(houseDelta, bet.id, houseDelta>0 ? 'house keeps losing leg stake(s) — the vig' : 'house paid leg winnings');
+  saveDB();
 }
 function voidBet(bet, reason){
   if(bet.status==='settled'||bet.status==='void') return bet;
@@ -331,16 +382,12 @@ function resolveDispute(disputeId, decision, adminNote){
     audit('admin', bet.id, 'dispute_resolved', `Dispute UPHELD (grade stands). ${d.byName} loses the dispute — trust rating dinged. Note: ${d.adminNote}`);
   } else {
     // reverse settlement, then re-settle with corrected result
+    const hs = bet.grade ? bet.grade.homeScore : 0, as = bet.grade ? bet.grade.awayScore : 0;
     reverseSettlement(bet);
     const map={overturn_win:'win',overturn_loss:'loss',overturn_push:'push',overturn_void:'void'};
     const res=map[decision];
     if(res==='void'){ voidBet(bet,'Overturned on dispute: '+d.adminNote); }
-    else{
-      // re-settle: temporarily flip grade by re-running settle with forced result
-      bet._forceResult=res;
-      settleBetForced(bet,res);
-      delete bet._forceResult;
-    }
+    else{ settleBetForced(bet,res,hs,as); }
     const otherId = d.byId===bet.creatorId ? bet.takerId : bet.creatorId;
     const other = otherId&&DB.users[otherId];
     if(other){ other.disputesLost=(other.disputesLost||0)+1; }
@@ -352,7 +399,9 @@ function reverseSettlement(bet){
   // Post exact-reversal entries for SETTLEMENT movements only (payouts, pot wins,
   // refunds). Stakes stay deducted — the money is still in play for the re-grade.
   // Never delete entries; the ledger is append-only.
-  const SETTLE_TYPES = ['payout_wager','pot_win','refund_push','refund_void'];
+  const SETTLE_TYPES = ['housebet_payout','housebet_refund_push','pot_win','pot_refund_push',
+    'refund_push','refund_void',          // push/void refunds
+    'payout_wager'];                      // legacy v1 entry type (old localStorage DBs)
   [...DB.ledger].reverse().forEach(e=>{
     if(e.battleId!==bet.id || !SETTLE_TYPES.includes(e.type)) return;
     if(e.userId && DB.users[e.userId]){
@@ -367,26 +416,10 @@ function reverseSettlement(bet){
   });
   bet.status='matched'; bet.grade=null; bet.settledAt=null; saveDB();
 }
-function settleBetForced(bet, res){
+function settleBetForced(bet, res, hs, as){
   // re-settle with an admin-forced result (used after dispute overturn)
-  const push=res==='push';
-  const creatorWon=res==='win';
-  const potTotal=+(bet.potShare*(bet.mode==='challenge'?2:1)).toFixed(2);
-  if(push){ postLedger(bet.creatorId,bet.id,'refund_push',bet.stake,'Push (dispute) — stake returned');
-    if(bet.takerId) postLedger(bet.takerId,bet.id,'refund_push',bet.stake,'Push (dispute) — stake returned');
-    bet._houseDelta=0;
-  } else if(bet.mode==='house'){
-    if(creatorWon){ postLedger(bet.creatorId,bet.id,'payout_wager',+(2*bet.wager).toFixed(2),'Won vs house (dispute) — wager paid out');
-      postLedger(bet.creatorId,bet.id,'pot_win',bet.potShare,'Won vs house (dispute) — pot returned');
-      bet._houseDelta=-bet.wager; houseTake(-bet.wager,bet.id,'paid winner (dispute overturn)');
-    } else { bet._houseDelta=bet.stake; houseTake(bet.stake,bet.id,'lost vs house (dispute overturn)'); }
-  } else {
-    const winnerId=creatorWon?bet.creatorId:bet.takerId;
-    postLedger(winnerId,bet.id,'payout_wager',bet.wager,'Won battle (dispute) — wager returned');
-    postLedger(winnerId,bet.id,'pot_win',potTotal,`Won battle (dispute) — takes ${fmt$(potTotal)} pot`);
-    bet._houseDelta=bet.wager; houseTake(bet.wager,bet.id,"loser's wager → house (dispute overturn)");
-  }
-  bet.grade={result:res,homeScore:bet.grade?bet.grade.homeScore:0,awayScore:bet.grade?bet.grade.awayScore:0,source:'dispute-overturn',gradedAt:new Date().toISOString(),rule:'Admin overturn on dispute'};
+  applySettlement(bet, res, hs, as);
+  bet.grade={result:res,homeScore:hs||0,awayScore:as||0,source:'dispute-overturn',gradedAt:new Date().toISOString(),rule:'Admin overturn on dispute'};
   bet.status='settled'; bet.settledAt=new Date().toISOString();
   recordSettled(bet,res); saveDB();
 }
@@ -584,7 +617,7 @@ function renderWelcome(){
     <div style="font-size:44px;">⚔️</div>
     <h2 style="margin:8px 0;">Battle Bets</h2>
     <p class="mut">Challenge friends head-to-head on real games with real lines.<br>
-    Every stake splits <b>80/20</b> — 80% is the bet, 20% feeds the pot.<br>Winner takes the pot.</p>
+    Every challenge = <b>two separate bets</b>: 80% is a standard bet vs the house at real odds, 20% goes into a head-to-head pot.<br>Winner takes the pot.</p>
     <label style="text-align:left;">Pick your battler name</label>
     <input id="wn" placeholder="e.g. Anthony" maxlength="24">
     <button class="btn btn-green btn-block" onclick="doSignup()">Enter the arena — get $100 demo</button>
@@ -614,10 +647,10 @@ async function renderHome(){
   </div>
   <div class="card"><h3>How the money works</h3>
     <div class="split80">
-      <div><div class="n" style="color:var(--navy)">80%</div><div class="tiny mut">THE BET — house keeps losers', pays winners'</div></div>
-      <div><div class="n" style="color:var(--green-d)">20%</div><div class="tiny mut">THE POT — winner takes it all</div></div>
+      <div><div class="n" style="color:var(--navy)">80%</div><div class="tiny mut">HOUSE BET — a standard bet vs the house at the real odds. Win → paid at odds. Lose → house keeps it.</div></div>
+      <div><div class="n" style="color:var(--green-d)">20%</div><div class="tiny mut">CHALLENGE POT — head-to-head only. Both sides in, winner takes it all. The house takes nothing from the pot.</div></div>
     </div>
-    <p class="small mut">$5 stake → $4 bet + $1 pot. Beat your friend heads-up: you get your $4 back + the whole pot. House keeps the loser's $4.</p>
+    <p class="small mut">Example: $5 challenge on Over 47.5 @ -110, over hits → your $4 wins and pays $7.64, plus you take the $2 pot. You net +$4.64. The house makes the normal ~4.5% vig on the 80% legs.</p>
   </div>`;
   app.querySelectorAll('#lg-tabs button').forEach(b=>b.onclick=()=>{homeLeague=b.dataset.lg; renderHome();});
   loadEvents();
@@ -683,6 +716,7 @@ async function renderGame(leagueId, eventId){
     if(!ln){ ln = demoLines(e.homeAbbr, e.awayAbbr); lineSource='demo'; }
     // optional: try The Odds API to sharpen consensus
     G = {e, ln, lineSource, mode, market:'spread', selection:'home', stake:5, customLine:null};
+    setSideOdds();
     renderGameCard();
   }catch(err){ app.innerHTML=`<div class="card"><div class="errbox">Couldn't load game: ${esc(err.message)}</div><a href="#/">← Back</a></div>`; }
 }
@@ -723,17 +757,27 @@ function renderGameCard(){
     <div id="bet-msg"></div>
   </div>`;
   app.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{G.mode=b.dataset.m; renderGameCard();});
-  app.querySelectorAll('#mkt-tabs button').forEach(b=>b.onclick=()=>{G.market=b.dataset.k; G.selection = G.market==='total'?'over':'home'; G.customLine=null; renderGameCard();});
+  app.querySelectorAll('#mkt-tabs button').forEach(b=>b.onclick=()=>{G.market=b.dataset.k; G.selection = G.market==='total'?'over':'home'; G.customLine=null; setSideOdds(); renderGameCard();});
   paintSides(); paintStakes(); paintSlip(); paintModeNote();
   const cl=$('#custom-line'); if(cl){ cl.oninput=()=>{ G.customLine = cl.value===''? null : +cl.value; paintSlip(); paintLineScore(); }; }
   paintLineScore();
 }
 function mktLine(){ const {ln,market}=G; return market==='spread'?ln.spread : market==='total'?ln.total : null; }
+/* American odds for the current side + the opposite side (challenge taker's leg).
+   Spread/total default to standard -110; moneyline uses the feed's ML prices. */
+function setSideOdds(){
+  const {ln, market, selection} = G;
+  if(market==='moneyline'){
+    G.odds = selection==='home' ? (ln.homeML??-110) : (ln.awayML??-110);
+    G.oppOdds = selection==='home' ? (ln.awayML??-110) : (ln.homeML??-110);
+  } else { G.odds = -110; G.oppOdds = -110; }
+}
+function payoutPreview(wager, odds){ return fmt$(+(wager + winnings(wager, odds)).toFixed(2)); }
 function paintModeNote(){
   const el=$('#mode-note'); if(!el) return;
   el.innerHTML = G.mode==='challenge'
-    ? `<div class="okbox">⚔️ <b>Challenge mode:</b> you take one side, your friend takes the other. Same locked line, same stake. Winner takes the pot — the house keeps the loser's bet portion.</div>`
-    : `<div class="warn">🏠 <b>Vs house:</b> win and the house pays your wager out + you take the pot. Lose and the house keeps it all.</div>`;
+    ? `<div class="okbox">⚔️ <b>Challenge mode = two separate bets:</b> 80% of your stake is a standard bet vs the house at the locked odds; 20% goes into a head-to-head pot. Your friend's 80% is their own house bet. Winner of the matchup takes the whole pot.</div>`
+    : `<div class="warn">🏠 <b>Vs house:</b> your full stake is a standard bet vs the house at the locked odds. No pot.</div>`;
 }
 function paintSides(){
   const el=$('#side-pick'); const {e,market}=G;
@@ -741,7 +785,7 @@ function paintSides(){
     ? [['home',`${e.homeAbbr}`],['away',`${e.awayAbbr}`]]
     : [['over','Over '+mktLine()],['under','Under '+mktLine()]];
   el.innerHTML = opts.map(([v,l])=>`<button data-v="${v}" class="${G.selection===v?'sel':''}">${l}</button>`).join('');
-  el.querySelectorAll('button').forEach(b=>b.onclick=()=>{G.selection=b.dataset.v; paintSides(); paintSlip(); paintLineScore();});
+  el.querySelectorAll('button').forEach(b=>b.onclick=()=>{G.selection=b.dataset.v; setSideOdds(); paintSides(); paintSlip(); paintLineScore();});
 }
 function paintStakes(){
   const el=$('#stake-pick');
@@ -759,16 +803,18 @@ function paintLineScore(){
 }
 function paintSlip(){
   const el=$('#slip-preview'); if(!el) return;
-  const {e,mode,market,selection,stake,lineSource}=G;
-  const {wager,pot}=splitStake(stake);
+  const {e,mode,market,selection,stake,lineSource,odds,oppOdds}=G;
   const tmp={homeAbbr:e.homeAbbr,awayAbbr:e.awayAbbr,market,selection,line:lockedLine()};
+  const wager = mode==='challenge' ? +(stake*0.8).toFixed(2) : stake;
+  const pot = mode==='challenge' ? +(stake*0.2).toFixed(2) : 0;
+  const leg1 = mode==='challenge'
+    ? `<div class="small"><b>Leg 1 — house bet:</b> ${fmt$(wager)} on ${esc(describeSelectionFor(tmp,selection))} @ <b>${fmtOdds(odds)}</b> <span class="tiny mut">→ win pays ${payoutPreview(wager,odds)}</span></div>
+       <div class="small"><b>Leg 2 — challenge pot:</b> ${fmt$(pot)} vs your friend <span class="tiny mut">→ winner takes ${fmt$(pot*2)}</span></div>`
+    : `<div class="small"><b>House bet:</b> ${fmt$(wager)} on ${esc(describeSelectionFor(tmp,selection))} @ <b>${fmtOdds(odds)}</b> <span class="tiny mut">→ win pays ${payoutPreview(wager,odds)}</span></div>`;
   el.innerHTML=`
-    <div class="k">Bet slip — ${mode==='challenge'?'⚔️ Challenge':'🏠 Vs House'}</div>
-    <div class="v">${esc(e.awayAbbr)} @ ${esc(e.homeAbbr)} — ${esc(describeSelectionFor(tmp,selection))}${market!=='moneyline'?` <span class="tiny mut">(locked${lineSource==='demo'?' · demo':''})</span>`:''}</div>
-    <div class="split80">
-      <div><div class="k">The bet (80%)</div><div class="n">${fmt$(wager)}</div><div class="tiny mut">${mode==='challenge'?'loser\'s goes to house':'house pays winners'}</div></div>
-      <div><div class="k">The pot (20%)</div><div class="n">${fmt$(pot)}</div><div class="tiny mut">winner takes it</div></div>
-    </div>
+    <div class="k">Bet slip — ${mode==='challenge'?'⚔️ Challenge (two separate bets)':'🏠 Vs House'}</div>
+    <div class="v">${esc(e.awayAbbr)} @ ${esc(e.homeAbbr)}${market!=='moneyline'?` — line <b>${lockedLine()}</b> <span class="tiny mut">(locked${lineSource==='demo'?' · demo':''})</span>`:''}</div>
+    ${leg1}
     <div class="tiny mut">Stake ${fmt$(stake)} · settles from final score via ESPN · ${CFG.DISPUTE_WINDOW_H}h dispute window</div>`;
 }
 async function placeBet(){
@@ -779,6 +825,7 @@ async function placeBet(){
     const line = market==='moneyline' ? (selection==='home'?ln.homeML:ln.awayML) : lockedLine();
     const bet = createBet({ mode, eventId:e.id, league:e.league, homeAbbr:e.homeAbbr, awayAbbr:e.awayAbbr,
       homeName:e.homeName, awayName:e.awayName, eventDate:e.date, market, selection, line,
+      odds:G.odds, oppOdds:G.oppOdds,
       consensusLine: lineSource==='demo'?null:mktLine(), lineSource, stake, customLine: G.customLine!=null });
     if(mode==='challenge'){
       const link = challengeLink(bet);
@@ -793,9 +840,9 @@ async function placeBet(){
   }catch(err){ msg.innerHTML=`<div class="errbox">${esc(err.message==='insufficient'?'Not enough demo credits.':err.message)}</div>`; }
 }
 function challengePayload(bet){
-  return { v:1, id:bet.id, eventId:bet.eventId, league:bet.league, homeAbbr:bet.homeAbbr, awayAbbr:bet.awayAbbr,
+  return { v:2, id:bet.id, eventId:bet.eventId, league:bet.league, homeAbbr:bet.homeAbbr, awayAbbr:bet.awayAbbr,
     homeName:bet.homeName, awayName:bet.awayName, eventDate:bet.eventDate, market:bet.market, selection:bet.selection,
-    line:bet.line, consensusLine:bet.consensusLine, lineSource:bet.lineSource, stake:bet.stake,
+    line:bet.line, odds:bet.odds, oppOdds:bet.oppOdds, consensusLine:bet.consensusLine, lineSource:bet.lineSource, stake:bet.stake,
     creatorId:bet.creatorId, creatorName:bet.creatorName, createdAt:bet.createdAt };
 }
 function challengeLink(bet){
@@ -827,15 +874,15 @@ async function renderChallengeAccept(payload){
       <div class="v">${esc(p.creatorName)}: ${esc(describeSelectionFor({homeAbbr:p.homeAbbr,awayAbbr:p.awayAbbr,market:p.market,selection:p.selection,line:p.line},p.selection))}</div>
       <div class="v" style="color:var(--blue)">You: ${esc(describeSelectionFor(tmp,takerSel))}</div>
       <div class="split80">
-        <div><div class="k">The bet (80%)</div><div class="n">${fmt$(p.stake*0.8)}</div></div>
-        <div><div class="k">The pot (20%)</div><div class="n">${fmt$(p.stake*0.4)}</div><div class="tiny mut">both sides in</div></div>
+        <div><div class="k">Leg 1 — house bet (80%)</div><div class="n">${fmt$(p.stake*0.8)}</div><div class="tiny mut">@ ${fmtOdds(p.oppOdds??-110)} — win pays ${payoutPreview(p.stake*0.8, p.oppOdds??-110)}</div></div>
+        <div><div class="k">Leg 2 — pot (20%)</div><div class="n">${fmt$(p.stake*0.4)}</div><div class="tiny mut">both sides in — winner takes it</div></div>
       </div>
       <div class="tiny mut">Stake ${fmt$(p.stake)} each · line locked at ${p.line} (${p.lineSource}) · settles from ESPN final</div>
     </div>
     ${warn?`<div class="warn"><b>⚠️ Line moved!</b> Consensus was ${warn.from}, now ${warn.to} (${warn.move} pts). The locked line still stands — accept with eyes open.</div>`:''}
     ${!u?`<p class="mut">Enter a battler name first:</p><input id="wn2" placeholder="Your name" maxlength="24">`:''}
     <button class="btn btn-green btn-block" onclick="acceptFromLink('${esc(payload)}')">⚔️ Accept — battle for ${fmt$(p.stake)}</button>
-    <p class="tiny mut">Winner gets their ${fmt$(p.stake*0.8)} back + the ${fmt$(p.stake*0.4)} pot. Loser's ${fmt$(p.stake*0.8)} → house.</p>
+    <p class="tiny mut">Two separate bets: your ${fmt$(p.stake*0.8)} is a house bet @ ${fmtOdds(p.oppOdds??-110)} (win pays ${payoutPreview(p.stake*0.8, p.oppOdds??-110)}), your ${fmt$(p.stake*0.2)} goes to the pot — winner takes ${fmt$(p.stake*0.4)}.</p>
   </div>`;
   app._payload = p;
 }
@@ -852,7 +899,9 @@ async function acceptFromLink(payload){
       const {wager,pot}=splitStake(p.stake);
       bet={ id:p.id, createdAt:p.createdAt, creatorId:p.creatorId, creatorName:p.creatorName, mode:'challenge',
         eventId:p.eventId, league:p.league, homeAbbr:p.homeAbbr, awayAbbr:p.awayAbbr, homeName:p.homeName, awayName:p.awayName,
-        eventDate:p.eventDate, market:p.market, selection:p.selection, line:p.line, consensusLine:p.consensusLine,
+        eventDate:p.eventDate, market:p.market, selection:p.selection, line:p.line,
+        odds:p.odds??-110, oppOdds:p.oppOdds??-110, takerOdds:null,
+        consensusLine:p.consensusLine,
         lineSource:p.lineSource, customLine:false, takerId:null, takerName:null, stake:p.stake, wager, potShare:pot,
         status:'open', grade:null, dispute:null, settledAt:null };
       DB.bets.push(bet);
@@ -882,11 +931,14 @@ function betCard(b){
   const tmp={homeAbbr:b.homeAbbr,awayAbbr:b.awayAbbr,market:b.market,selection:mySide,line:b.line};
   const opp = b.mode==='challenge' ? (iAmCreator? (b.takerName||'waiting for taker…') : b.creatorName) : 'the House';
   const res = b.grade? `<div class="small" style="margin-top:6px;"><b>Final:</b> ${b.grade.homeScore}-${b.grade.awayScore} ${b.awayAbbr}@${b.homeAbbr} → <b style="color:${b.grade.result==='win'?'var(--green-d)':b.grade.result==='loss'?'var(--red)':'var(--mut)'}">${resultForMe(b).toUpperCase()}</b></div>`:'';
-  const pot = b.mode==='challenge' ? fmt$(b.potShare*2) : fmt$(b.potShare);
+  const pot = b.mode==='challenge' ? fmt$(b.potShare*2) : '—';
+  const stakeLine = b.mode==='challenge'
+    ? `${fmt$(b.stake)} <span class="tiny mut">(${fmt$(b.wager)} house bet @ ${fmtOdds(b.odds)} + ${fmt$(b.potShare)} pot)</span>`
+    : `${fmt$(b.stake)} <span class="tiny mut">house bet @ ${fmtOdds(b.odds)}</span>`;
   return `<div class="card" style="margin-bottom:10px;" data-bet="${b.id}">
     <div class="row-flex"><div class="grow"><b>${esc(b.awayAbbr)} @ ${esc(b.homeAbbr)}</b>
       <span class="tiny mut">${b.league.toUpperCase()} · ${fmtTime(b.eventDate)}</span></div>${statusChip(b.status)}</div>
-    <div class="small" style="margin-top:6px;">You: <b>${esc(describeSelectionFor(tmp,mySide))}</b> · vs ${esc(opp)} · ${fmt$(b.stake)} <span class="tiny mut">($${b.wager} bet + $${b.potShare} pot)</span></div>
+    <div class="small" style="margin-top:6px;">You: <b>${esc(describeSelectionFor(tmp,mySide))}</b> · vs ${esc(opp)} · ${stakeLine}</div>
     ${res}
     <div class="row-flex" style="margin-top:8px;">
       <button class="btn btn-ghost btn-sm" data-act="slip">📋 Bet slip</button>
@@ -921,9 +973,14 @@ function slipDetail(b){
   ];
   if(b.takerId) rows.push(['Taker', `${esc(b.takerName)}: ${esc(describeSelectionFor({homeAbbr:b.homeAbbr,awayAbbr:b.awayAbbr,market:b.market,selection:b.takerSelection,line:b.line},b.takerSelection))}`]);
   rows.push(['Locked line', `${b.line} <span class="tiny mut">(source: ${b.lineSource}${b.customLine?' · custom':''})</span>`]);
+  rows.push(['Odds', b.mode==='challenge'
+    ? `creator ${fmtOdds(b.odds)} · taker ${fmtOdds(b.takerOdds??b.oppOdds)}`
+    : `${fmtOdds(b.odds)}`]);
   if(b.consensusLine!=null) rows.push(['Consensus at creation', b.consensusLine]);
   if(ls) rows.push(['Line score', `${ls.delta>0?'+':''}${ls.delta} pts → favors <b>${ls.favors==='even'?'neither (even)':ls.favors}</b>`]);
-  rows.push(['Stake', `${fmt$(b.stake)} = ${fmt$(b.wager)} bet (80%) + ${fmt$(b.potShare)} pot (20%)`]);
+  rows.push(['Stake', b.mode==='challenge'
+    ? `${fmt$(b.stake)} = <b>leg 1:</b> ${fmt$(b.wager)} house bet @ ${fmtOdds(b.odds)} <b>+ leg 2:</b> ${fmt$(b.potShare)} challenge pot`
+    : `${fmt$(b.stake)} house bet @ ${fmtOdds(b.odds)}`]);
   rows.push(['Status', statusChip(b.status)]);
   if(b.grade) rows.push(['Grade', `${b.grade.result.toUpperCase()} — ${esc(b.grade.rule)} <span class="tiny mut">(${esc(b.grade.source)}, ${fmtTime(b.grade.gradedAt)})</span>`]);
   if(b.settledAt) rows.push(['Settled', fmtTime(b.settledAt)]);
@@ -945,15 +1002,15 @@ function showDisputeForm(bet){
 /* ---------- Pots ---------- */
 function renderPots(){
   const app=$('#app');
-  const open = DB.bets.filter(b=>['open','matched','live'].includes(b.status));
-  const done = DB.bets.filter(b=>b.status==='settled').slice(-10).reverse();
+  const open = DB.bets.filter(b=>b.mode==='challenge' && ['open','matched','live'].includes(b.status));
+  const done = DB.bets.filter(b=>b.mode==='challenge' && b.status==='settled').slice(-10).reverse();
   app.innerHTML=`<div class="card"><h3>🏆 Pot tracker</h3>
-    <p class="small mut">Every stake feeds 20% into its battle's pot. Winner takes the pot.</p>
-    ${open.length? open.map(b=>{const pot=b.mode==='challenge'?b.potShare*2:b.potShare;
-      return `<div class="lead-row"><div class="grow"><b>${esc(b.awayAbbr)} @ ${esc(b.homeAbbr)}</b><br><span class="tiny mut">${b.id} · ${b.mode} · ${statusChip(b.status)}</span></div><span class="score-pill">${fmt$(pot)}</span></div>`;}).join('')
+    <p class="small mut">Every challenge puts 20% of each stake into a head-to-head pot — winner takes it all. (Plain house bets have no pot.)</p>
+    ${open.length? open.map(b=>{const pot=b.potShare*2;
+      return `<div class="lead-row"><div class="grow"><b>${esc(b.awayAbbr)} @ ${esc(b.homeAbbr)}</b><br><span class="tiny mut">${b.id} · ${statusChip(b.status)}</span></div><span class="score-pill">${fmt$(pot)}</span></div>`;}).join('')
       : '<p class="mut">No open battles.</p>'}
     <h3 style="margin-top:16px;">Recent pots won</h3>
-    ${done.length? done.map(b=>{const pot=b.mode==='challenge'?b.potShare*2:b.potShare;
+    ${done.length? done.map(b=>{const pot=b.potShare*2;
       const w = b.grade ? (b.grade.result==='win'?b.creatorName:(b.takerName||b.creatorName)) : '—';
       return `<div class="lead-row"><div class="grow"><b>${esc(w)}</b> took <b>${fmt$(pot)}</b><br><span class="tiny mut">${esc(b.awayAbbr)} @ ${esc(b.homeAbbr)} · ${b.id}</span></div></div>`;}).join('')
       : '<p class="mut">No settled battles yet.</p>'}
@@ -1043,10 +1100,29 @@ function adminLogin(){
 function admBets(){
   const el=$('#adm-body');
   const bets=[...DB.bets].reverse();
+  // House P&L breakdown per leg type (refined model)
+  let legStaked=0, legPaid=0, potsPaid=0, challenges=0, houseBets=0;
+  DB.bets.forEach(b=>{
+    if(b.status!=='settled' || !b._legs) return;
+    Object.values(b._legs).forEach(L=>{
+      legStaked += L.wager; legPaid += L.payout;
+      if(b.mode==='challenge') challenges++; else houseBets++;
+    });
+    potsPaid += (b._potPaid||0);
+  });
+  const legNet = +(legStaked-legPaid).toFixed(2);
   el.innerHTML=`<p class="small mut">${bets.length} bets · house balance <b>${fmt$(DB.houseBalance)}</b></p>
-  <div style="overflow-x:auto;"><table><tr><th>ID</th><th>Battle</th><th>Mode</th><th>Stake</th><th>Status</th><th></th></tr>
+  <div class="card" style="margin:0 0 12px 0;"><h3 style="margin-top:0;">💰 House P&L by leg type</h3>
+    <div class="small">House legs staked: <b>${fmt$(legStaked)}</b> (${challenges+houseBets} legs settled)<br>
+    House legs paid out: <b>${fmt$(legPaid)}</b><br>
+    <b>Net on 80% legs: <span style="color:${legNet>=0?'var(--green-d)':'var(--red)'}">${legNet>=0?'+':''}${fmt$(legNet)}</span></b> <span class="tiny mut">≈ the standard vig (~4.5% at -110)</span><br>
+    Challenge pots paid to winners: <b>${fmt$(potsPaid)}</b> <span class="tiny mut">(house takes 0% of pots)</span></div>
+  </div>
+  <div style="overflow-x:auto;"><table><tr><th>ID</th><th>Battle</th><th>Mode</th><th>Stake</th><th>Legs</th><th>Status</th><th></th></tr>
   ${bets.map(b=>`<tr><td class="tiny">${b.id}</td><td>${esc(b.awayAbbr)}@${esc(b.homeAbbr)}<br><span class="tiny mut">${esc(b.creatorName)}${b.takerName?' vs '+esc(b.takerName):''}</span></td>
-    <td class="tiny">${b.mode}</td><td>${fmt$(b.stake)}</td><td>${statusChip(b.status)}</td>
+    <td class="tiny">${b.mode}</td><td>${fmt$(b.stake)}</td>
+    <td class="tiny">${b._legs? Object.entries(b._legs).map(([k,L])=>`${k==='creator'?'C':'T'}: ${fmt$(L.wager)} @ ${fmtOdds(L.odds)} → ${L.result} (${fmt$(L.payout)})`).join('<br>') : '—'}${b._potPaid?`<br>pot → ${fmt$(b._potPaid)}`:''}</td>
+    <td>${statusChip(b.status)}</td>
     <td>${['open','matched','live'].includes(b.status)?`<button class="btn btn-ghost btn-sm" onclick="admGradePrompt('${b.id}')">Grade</button> <button class="btn btn-ghost btn-sm" onclick="admVoid('${b.id}')">Void</button>`:''}</td></tr>`).join('')}
   </table></div>`;
 }
