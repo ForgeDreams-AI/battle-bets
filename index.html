@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Battle Bets — Battle your friends. Winner takes the pot.</title>
+<style>
+:root{
+  --navy:#0f1b2d; --navy2:#16263f; --green:#16a34a; --green-d:#15803d;
+  --red:#dc2626; --amber:#d97706; --blue:#2563eb; --bg:#f3f5f9; --card:#ffffff;
+  --ink:#0f1b2d; --mut:#64748b; --line:#e2e8f0; --radius:14px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);}
+header{background:var(--navy);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:50;}
+header .row{max-width:920px;margin:0 auto;display:flex;align-items:center;gap:10px;}
+.logo{font-weight:800;font-size:20px;letter-spacing:.3px;}
+.logo span{color:#4ade80;}
+.hdr-spacer{flex:1;}
+.hdr-user{font-size:13px;color:#cbd5e1;text-align:right;line-height:1.3;}
+.hdr-user b{color:#fff;}
+nav.tabs{background:var(--navy2);position:sticky;top:57px;z-index:49;overflow-x:auto;}
+nav.tabs .row{max-width:920px;margin:0 auto;display:flex;}
+nav.tabs a{color:#cbd5e1;text-decoration:none;padding:12px 14px;font-size:14px;font-weight:600;white-space:nowrap;border-bottom:3px solid transparent;}
+nav.tabs a.active{color:#fff;border-bottom-color:#4ade80;}
+main{max-width:920px;margin:0 auto;padding:16px 14px 90px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,27,45,.06);}
+.card h3{margin:0 0 8px;font-size:17px;}
+.mut{color:var(--mut);} .small{font-size:13px;} .tiny{font-size:12px;}
+.row-flex{display:flex;align-items:center;gap:10px;}
+.grow{flex:1;}
+.btn{display:inline-block;border:none;border-radius:10px;padding:12px 18px;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none;text-align:center;}
+.btn-green{background:var(--green);color:#fff;} .btn-green:active{background:var(--green-d);}
+.btn-navy{background:var(--navy);color:#fff;}
+.btn-ghost{background:#eef2f7;color:var(--ink);}
+.btn-red{background:var(--red);color:#fff;}
+.btn-block{width:100%;margin-top:10px;}
+.btn-sm{padding:8px 12px;font-size:13px;border-radius:8px;}
+input,select,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:15px;margin:6px 0;background:#fff;color:var(--ink);}
+label{font-size:13px;font-weight:700;color:var(--mut);display:block;margin-top:10px;}
+.chip{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.3px;}
+.chip-open{background:#dbeafe;color:#1d4ed8;} .chip-matched{background:#e0e7ff;color:#4338ca;}
+.chip-live{background:#fef3c7;color:#92400e;} .chip-graded{background:#e2e8f0;color:#475569;}
+.chip-settled{background:#dcfce7;color:#166534;} .chip-disputed{background:#fee2e2;color:#991b1b;}
+.chip-void{background:#f1f5f9;color:#64748b;}
+.teamline{display:flex;align-items:center;gap:10px;padding:10px 0;}
+.teamline .abbr{font-weight:800;font-size:16px;min-width:52px;}
+.teamline .nm{color:var(--mut);font-size:13px;}
+.oddsline{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.oddbox{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;}
+.oddbox b{color:var(--navy);}
+.slip{border:2px dashed var(--line);border-radius:var(--radius);padding:14px;margin:12px 0;background:#fbfdff;}
+.slip .k{font-size:12px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.slip .v{font-size:15px;font-weight:700;margin-bottom:6px;}
+.split80{display:flex;gap:8px;margin:10px 0;}
+.split80 div{flex:1;background:#f1f5f9;border-radius:10px;padding:10px;text-align:center;}
+.split80 .n{font-size:20px;font-weight:800;}
+.stake-pick{display:flex;gap:8px;margin:8px 0;}
+.stake-pick button{flex:1;padding:12px 0;border:2px solid var(--line);background:#fff;border-radius:10px;font-size:16px;font-weight:800;cursor:pointer;}
+.stake-pick button.sel{border-color:var(--green);background:#f0fdf4;color:var(--green-d);}
+.side-pick{display:flex;gap:8px;margin:8px 0;}
+.side-pick button{flex:1;padding:14px 6px;border:2px solid var(--line);background:#fff;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;}
+.side-pick button.sel{border-color:var(--blue);background:#eff6ff;color:#1d4ed8;}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);}
+th{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;}
+.score-pill{display:inline-block;min-width:34px;text-align:center;background:var(--navy);color:#fff;border-radius:8px;padding:4px 8px;font-weight:800;}
+.lead-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);}
+.lead-row .rank{font-size:20px;font-weight:800;color:var(--mut);min-width:34px;text-align:center;}
+.audit{font-size:13px;border-left:3px solid var(--line);padding:6px 10px;margin:8px 0;background:#f8fafc;border-radius:0 8px 8px 0;}
+.warn{background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 12px;font-size:13px;margin:10px 0;}
+.okbox{background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:10px 12px;font-size:13px;margin:10px 0;}
+.errbox{background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:10px 12px;font-size:13px;margin:10px 0;}
+.demo-tag{display:inline-block;background:#f59e0b;color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;margin-left:6px;vertical-align:middle;}
+.live-dot{display:inline-block;width:8px;height:8px;background:#ef4444;border-radius:50%;margin-right:6px;animation:blink 1.2s infinite;}
+@keyframes blink{50%{opacity:.3;}}
+footer{text-align:center;color:var(--mut);font-size:12px;padding:24px 12px;}
+.hidden{display:none!important;}
+.adm-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;}
+.adm-tabs button{white-space:nowrap;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#fff;font-weight:700;font-size:13px;cursor:pointer;}
+.adm-tabs button.sel{background:var(--navy);color:#fff;border-color:var(--navy);}
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <div class="logo">⚔️ Battle<span>Bets</span></div>
+    <div class="hdr-spacer"></div>
+    <div class="hdr-user" id="hdr-user"></div>
+  </div>
+</header>
+<nav class="tabs"><div class="row" id="main-tabs"></div></nav>
+<main id="app"></main>
+<footer>Battle Bets v1 — demo credits only. Not real gambling. Lines via ESPN · settlement from final scores.</footer>
+
+<script>
+/* ============================================================
+   BATTLE BETS v1 — peer-to-peer battle betting (demo credits)
+   Money rule (confirmed): every stake splits 80/20.
+   $4 of $5 = the wager (house keeps losers' $4, pays winners' $4).
+   $1 of $5 = pot contribution. Winner takes the pot.
+   ============================================================ */
+'use strict';
+const CFG = {
+  VERSION: '1.0.0',
+  STAKES: [1, 5, 10, 25],
+  STARTING_CREDITS: 100,
+  DISPUTE_WINDOW_H: 24,
+  RATED_MIN_BETS: 5,
+  DECAY_PER_30D: 0.98,
+  LEAGUES: [
+    {id:'nfl',   sport:'football',   label:'NFL'},
+    {id:'ncaaf', sport:'football',   label:'College FB'},
+    {id:'nba',   sport:'basketball', label:'NBA'},
+    {id:'ncaam', sport:'basketball', label:'College BB'},
+    {id:'mlb',   sport:'baseball',   label:'MLB'},
+    {id:'nhl',   sport:'hockey',     label:'NHL'},
+    {id:'mls',   sport:'soccer',     label:'MLS'},
+  ],
+  ESPN_BASE: 'https://site.api.espn.com/apis/site/v2/sports',
+  ODDS_API_BASE: 'https://api.the-odds-api.com/v4',
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt$ = n => '$' + Number(n).toFixed(2).replace(/\.00$/,'');
+const fmtTime = iso => { try{ return new Date(iso).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});}catch(e){return iso;} };
+const uid = p => (p||'id') + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const todayKey = () => new Date().toISOString().slice(0,10);
+
+/* ---------------- Store (localStorage) ---------------- */
+const DB_KEY = 'battlebets_db_v1';
+function defaultDB(){ return {
+  users:{},            // id -> {id,name,createdAt,credits,settledBets:[],disputesLost:0,winStreak:0,lastSettledAt}
+  bets:[],             // bet slips
+  ledger:[],           // every credit movement
+  audit:[],            // immutable grading/admin audit entries
+  disputes:[],         // dispute records
+  config:{ adminPw:'battleboss', oddsApiKey:'', adminName:'Anthony' },
+  houseBalance:0,
+  seq:0,
+};}
+function loadDB(){ try{ const d = JSON.parse(localStorage.getItem(DB_KEY)); if(d && d.users) return d; }catch(e){} return defaultDB(); }
+function saveDB(){ localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
+let DB = loadDB();
+function me(){ const id = localStorage.getItem('bb_me'); return id && DB.users[id] ? DB.users[id] : null; }
+function setMe(id){ localStorage.setItem('bb_me', id); }
+
+/* ---------------- Ledger ----------------
+   Every credit movement is an entry. Invariant:
+   sum(user balances) + houseBalance == total credits ever issued.
+   Entry: {id,ts,userId,battleId,type,amount,note,balanceAfter}  */
+function postLedger(userId, battleId, type, amount, note){
+  const u = DB.users[userId];
+  const entry = { id:uid('L'), ts:new Date().toISOString(), userId, battleId, type,
+    amount:+amount.toFixed(2), note:note||'',
+    balanceAfter: u ? +(u.credits + amount).toFixed(2) : null };
+  if(u){ u.credits = entry.balanceAfter; }
+  DB.ledger.push(entry); saveDB(); return entry;
+}
+function houseTake(amount, battleId, note){
+  DB.houseBalance = +(DB.houseBalance + amount).toFixed(2);
+  audit('house', battleId, 'house_take', `${fmt$(amount)} → house. ${note||''} House balance now ${fmt$(DB.houseBalance)}.`);
+  saveDB();
+}
+function audit(actorId, battleId, kind, text){
+  DB.audit.push({ id:uid('A'), ts:new Date().toISOString(), actorId, battleId, kind, text });
+  saveDB();
+}
+
+/* ---------------- Bet engine ---------------- */
+function splitStake(stake){ const w = +(stake*0.8).toFixed(2), p = +(stake*0.2).toFixed(2); return {wager:w, pot:p}; }
+
+function createBet(o){
+  // o: {mode, eventId, league, homeAbbr, awayAbbr, homeName, awayName, eventDate,
+  //     market, selection, line, consensusLine, lineSource, stake, customLine?}
+  const u = me(); if(!u) throw new Error('no-user');
+  const {wager, pot} = splitStake(o.stake);
+  if(u.credits < o.stake) throw new Error('insufficient');
+  const bet = {
+    id:'BB-'+(++DB.seq).toString().padStart(5,'0')+'-'+Math.random().toString(36).slice(2,6).toUpperCase(),
+    createdAt:new Date().toISOString(),
+    creatorId:u.id, creatorName:u.name,
+    mode:o.mode, // 'house' | 'challenge'
+    eventId:o.eventId, league:o.league,
+    homeAbbr:o.homeAbbr, awayAbbr:o.awayAbbr, homeName:o.homeName, awayName:o.awayName,
+    eventDate:o.eventDate,
+    market:o.market,            // 'spread'|'total'|'moneyline'
+    selection:o.selection,      // 'home'|'away'|'over'|'under'
+    line:o.line,                // locked line at creation (home-spread convention for spread)
+    consensusLine:o.consensusLine, lineSource:o.lineSource||'espn', customLine:!!o.customLine,
+    takerId:null, takerName:null,
+    stake:o.stake, wager, potShare:pot,
+    status: o.mode==='challenge' ? 'open' : 'matched',
+    grade:null, dispute:null, settledAt:null,
+  };
+  DB.bets.push(bet);
+  postLedger(u.id, bet.id, 'stake_placed', -o.stake, `Staked ${fmt$(o.stake)} (${fmt$(wager)} wager + ${fmt$(pot)} pot) on ${describeSelection(bet)}`);
+  audit(u.id, bet.id, 'bet_created', `${u.name} created ${o.mode} bet ${bet.id}: ${describeSelection(bet)} @ ${fmt$(o.stake)} (line ${o.line}, source ${o.lineSource}).`);
+  saveDB(); return bet;
+}
+function acceptChallenge(betId){
+  const u = me(); if(!u) throw new Error('no-user');
+  const bet = DB.bets.find(b=>b.id===betId); if(!bet || bet.status!=='open') throw new Error('not-open');
+  if(bet.creatorId===u.id) throw new Error('own-bet');
+  if(u.credits < bet.stake) throw new Error('insufficient');
+  bet.takerId = u.id; bet.takerName = u.name; bet.status = 'matched';
+  bet.takerSelection = oppositeSelection(bet.market, bet.selection);
+  postLedger(u.id, bet.id, 'stake_placed', -bet.stake, `Accepted challenge ${bet.id}: ${describeSelectionFor(bet, bet.takerSelection)} @ ${fmt$(bet.stake)}`);
+  audit(u.id, bet.id, 'challenge_accepted', `${u.name} took the other side (${describeSelectionFor(bet, bet.takerSelection)}). Battle is matched.`);
+  saveDB(); return bet;
+}
+function oppositeSelection(market, sel){
+  if(market==='spread'||market==='moneyline') return sel==='home'?'away':'home';
+  return sel==='over'?'under':'over';
+}
+function describeSelection(b){ return describeSelectionFor(b, b.selection); }
+function describeSelectionFor(b, sel){
+  const H=b.homeAbbr, A=b.awayAbbr;
+  if(b.market==='spread'){ const ln = sel==='home' ? b.line : -b.line;
+    const team = sel==='home'?H:A; return `${team} ${ln>0?'+':''}${ln}`; }
+  if(b.market==='total'){ return `${sel==='over'?'Over':'Under'} ${b.line}`; }
+  return `${sel==='home'?H:A} ML`;
+}
+
+/* Grading: result for a SELECTION given final scores.
+   Spread convention: bet.line = HOME spread (e.g. -7.5). cover = (home+line)-away. */
+function gradeSelection(bet, homeScore, awayScore){
+  const hs=+homeScore, as=+awayScore;
+  if(bet.market==='spread'){
+    const cover = (hs + bet.line) - as;
+    const s = bet.selection;
+    if(cover===0) return 'push';
+    return (s==='home' ? cover>0 : cover<0) ? 'win':'loss';
+  }
+  if(bet.market==='total'){
+    const t = hs+as;
+    if(t===bet.line) return 'push';
+    return (bet.selection==='over' ? t>bet.line : t<bet.line) ? 'win':'loss';
+  }
+  // moneyline
+  if(hs===as) return 'push';
+  const winner = hs>as?'home':'away';
+  return bet.selection===winner?'win':'loss';
+}
+
+/* Settle a bet from a final score. Writes ledger + audit. Idempotent. */
+function settleBet(bet, homeScore, awayScore, source){
+  if(bet.status==='settled'||bet.status==='void') return bet;
+  const res = gradeSelection(bet, homeScore, awayScore);
+  const creatorWon = res==='win', push = res==='push';
+  bet.grade = { result:res, homeScore:+homeScore, awayScore:+awayScore, source, gradedAt:new Date().toISOString(), rule: gradeRuleText(bet,res) };
+  const potTotal = +(bet.potShare * (bet.mode==='challenge'?2:1)).toFixed(2);
+  if(push){
+    // stakes returned to everyone
+    postLedger(bet.creatorId, bet.id, 'refund_push', bet.stake, `Push — stake returned`);
+    if(bet.takerId) postLedger(bet.takerId, bet.id, 'refund_push', bet.stake, `Push — stake returned`);
+    bet._houseDelta = 0;
+    audit('system', bet.id, 'graded', ` graded PUSH (${homeScore}-${awayScore}, ${source}). Stakes returned.`);
+  } else if(bet.mode==='house'){
+    if(creatorWon){
+      postLedger(bet.creatorId, bet.id, 'payout_wager', +(2*bet.wager).toFixed(2), `Won vs house — wager paid out`);
+      postLedger(bet.creatorId, bet.id, 'pot_win', bet.potShare, `Won vs house — pot returned`);
+      bet._houseDelta = -bet.wager;
+      houseTake(-bet.wager, bet.id, `paid winner ${bet.creatorName}`);
+    } else {
+      bet._houseDelta = bet.stake;
+      houseTake(bet.stake, bet.id, `${bet.creatorName} lost vs house`);
+    }
+    audit('system', bet.id, 'graded', `graded ${res.toUpperCase()} vs house (${homeScore}-${awayScore}, ${source}). ${gradeRuleText(bet,res)}`);
+  } else {
+    // challenge: winner gets own wager back + whole pot; loser's wager → house
+    const winnerId = creatorWon ? bet.creatorId : bet.takerId;
+    const loserId  = creatorWon ? bet.takerId : bet.creatorId;
+    postLedger(winnerId, bet.id, 'payout_wager', bet.wager, `Won battle — wager returned`);
+    postLedger(winnerId, bet.id, 'pot_win', potTotal, `Won battle — takes the ${fmt$(potTotal)} pot`);
+    bet._houseDelta = bet.wager;
+    houseTake(bet.wager, bet.id, `loser's wager → house`);
+    audit('system', bet.id, 'graded', `graded ${creatorWon?'CREATOR':'TAKER'} WINS (${homeScore}-${awayScore}, ${source}). ${gradeRuleText(bet,res)} Winner ${DB.users[winnerId].name} +${fmt$(bet.wager+potTotal)}.`);
+  }
+  bet.status='settled'; bet.settledAt=new Date().toISOString();
+  recordSettled(bet, res);
+  saveDB(); return bet;
+}
+function voidBet(bet, reason){
+  if(bet.status==='settled'||bet.status==='void') return bet;
+  postLedger(bet.creatorId, bet.id, 'refund_void', bet.stake, `Void — ${reason}`);
+  if(bet.takerId) postLedger(bet.takerId, bet.id, 'refund_void', bet.stake, `Void — ${reason}`);
+  bet.status='void'; bet.grade={result:'void',rule:reason,gradedAt:new Date().toISOString(),source:'system'};
+  audit('system', bet.id, 'void', `VOIDED: ${reason}. Stakes returned.`);
+  saveDB(); return bet;
+}
+function gradeRuleText(bet,res){
+  const H=bet.homeAbbr,A=bet.awayAbbr;
+  if(bet.market==='spread') return `Spread: home ${H} ${bet.line>0?'+':''}${bet.line}. Cover margin ${(bet.grade?bet.grade.homeScore:0)} vs ${(bet.grade?bet.grade.awayScore:0)} → ${res}.`;
+  if(bet.market==='total') return `Total ${bet.line}: final total ${((bet.grade?bet.grade.homeScore:0)+(bet.grade?bet.grade.awayScore:0))} → ${bet.selection} ${res}.`;
+  return `Moneyline: ${bet.selection==='home'?H:A} ${res==='win'?'won':'lost'} outright → ${res}.`;
+}
+function recordSettled(bet, res){
+  const ids = [bet.creatorId, bet.takerId].filter(Boolean);
+  ids.forEach(id=>{
+    const u = DB.users[id]; if(!u) return;
+    const won = (id===bet.creatorId) ? (res==='win') : (res==='loss'); // taker wins when creator loses
+    if(res==='push'||res==='void') return;
+    u.settledBets = u.settledBets||[];
+    u.settledBets.push({betId:bet.id, won, ts:new Date().toISOString()});
+    u.winStreak = won ? (u.winStreak||0)+1 : 0;
+    u.lastSettledAt = new Date().toISOString();
+  });
+}
+
+/* ---------------- Disputes ---------------- */
+function fileDispute(betId, reason, evidence){
+  const u=me(); const bet=DB.bets.find(b=>b.id===betId);
+  if(!bet||bet.status!=='settled') throw new Error('bad-state');
+  const hrs=(Date.now()-new Date(bet.settledAt).getTime())/36e5;
+  if(hrs>CFG.DISPUTE_WINDOW_H) throw new Error('window-closed');
+  const d={id:uid('D'), betId, byId:u.id, byName:u.name, reason, evidence, filedAt:new Date().toISOString(), status:'open', decision:null};
+  DB.disputes.push(d); bet.status='disputed'; bet.dispute=d.id;
+  audit(u.id, betId, 'dispute_filed', `${u.name} disputed grade: ${reason}. Evidence: ${evidence}`);
+  saveDB(); return d;
+}
+function resolveDispute(disputeId, decision, adminNote){
+  // decision: 'uphold' | 'overturn_win' | 'overturn_loss' | 'overturn_push' | 'overturn_void'
+  const d=DB.disputes.find(x=>x.id===disputeId); if(!d||d.status!=='open') throw new Error('bad');
+  const bet=DB.bets.find(b=>b.id===d.betId);
+  d.status='decided'; d.decision=decision; d.decidedAt=new Date().toISOString(); d.decidedBy=DB.config.adminName; d.adminNote=adminNote||'';
+  const filer=DB.users[d.byId];
+  if(decision==='uphold'){
+    bet.status='settled';
+    if(filer){ filer.disputesLost=(filer.disputesLost||0)+1; }
+    audit('admin', bet.id, 'dispute_resolved', `Dispute UPHELD (grade stands). ${d.byName} loses the dispute — trust rating dinged. Note: ${d.adminNote}`);
+  } else {
+    // reverse settlement, then re-settle with corrected result
+    reverseSettlement(bet);
+    const map={overturn_win:'win',overturn_loss:'loss',overturn_push:'push',overturn_void:'void'};
+    const res=map[decision];
+    if(res==='void'){ voidBet(bet,'Overturned on dispute: '+d.adminNote); }
+    else{
+      // re-settle: temporarily flip grade by re-running settle with forced result
+      bet._forceResult=res;
+      settleBetForced(bet,res);
+      delete bet._forceResult;
+    }
+    const otherId = d.byId===bet.creatorId ? bet.takerId : bet.creatorId;
+    const other = otherId&&DB.users[otherId];
+    if(other){ other.disputesLost=(other.disputesLost||0)+1; }
+    audit('admin', bet.id, 'dispute_resolved', `Dispute OVERTURNED → ${res.toUpperCase()}. Settlement reversed and re-applied. ${d.byName} wins the dispute; counterparty trust rating dinged. Note: ${d.adminNote}`);
+  }
+  saveDB(); return d;
+}
+function reverseSettlement(bet){
+  // Post exact-reversal entries for SETTLEMENT movements only (payouts, pot wins,
+  // refunds). Stakes stay deducted — the money is still in play for the re-grade.
+  // Never delete entries; the ledger is append-only.
+  const SETTLE_TYPES = ['payout_wager','pot_win','refund_push','refund_void'];
+  [...DB.ledger].reverse().forEach(e=>{
+    if(e.battleId!==bet.id || !SETTLE_TYPES.includes(e.type)) return;
+    if(e.userId && DB.users[e.userId]){
+      postLedger(e.userId, bet.id, 'reversal', -e.amount, `Reversal of ${e.type} (${e.id}) — dispute overturn`);
+    }
+  });
+  if(bet._houseDelta){ houseTake(-bet._houseDelta, bet.id, 'reversal of settlement (dispute overturn)'); bet._houseDelta=0; }
+  // strip the original settled record so ratings don't double-count the battle
+  [bet.creatorId, bet.takerId].filter(Boolean).forEach(id=>{
+    const u=DB.users[id];
+    if(u && u.settledBets) u.settledBets = u.settledBets.filter(s=>s.betId!==bet.id);
+  });
+  bet.status='matched'; bet.grade=null; bet.settledAt=null; saveDB();
+}
+function settleBetForced(bet, res){
+  // re-settle with an admin-forced result (used after dispute overturn)
+  const push=res==='push';
+  const creatorWon=res==='win';
+  const potTotal=+(bet.potShare*(bet.mode==='challenge'?2:1)).toFixed(2);
+  if(push){ postLedger(bet.creatorId,bet.id,'refund_push',bet.stake,'Push (dispute) — stake returned');
+    if(bet.takerId) postLedger(bet.takerId,bet.id,'refund_push',bet.stake,'Push (dispute) — stake returned');
+    bet._houseDelta=0;
+  } else if(bet.mode==='house'){
+    if(creatorWon){ postLedger(bet.creatorId,bet.id,'payout_wager',+(2*bet.wager).toFixed(2),'Won vs house (dispute) — wager paid out');
+      postLedger(bet.creatorId,bet.id,'pot_win',bet.potShare,'Won vs house (dispute) — pot returned');
+      bet._houseDelta=-bet.wager; houseTake(-bet.wager,bet.id,'paid winner (dispute overturn)');
+    } else { bet._houseDelta=bet.stake; houseTake(bet.stake,bet.id,'lost vs house (dispute overturn)'); }
+  } else {
+    const winnerId=creatorWon?bet.creatorId:bet.takerId;
+    postLedger(winnerId,bet.id,'payout_wager',bet.wager,'Won battle (dispute) — wager returned');
+    postLedger(winnerId,bet.id,'pot_win',potTotal,`Won battle (dispute) — takes ${fmt$(potTotal)} pot`);
+    bet._houseDelta=bet.wager; houseTake(bet.wager,bet.id,"loser's wager → house (dispute overturn)");
+  }
+  bet.grade={result:res,homeScore:bet.grade?bet.grade.homeScore:0,awayScore:bet.grade?bet.grade.awayScore:0,source:'dispute-overturn',gradedAt:new Date().toISOString(),rule:'Admin overturn on dispute'};
+  bet.status='settled'; bet.settledAt=new Date().toISOString();
+  recordSettled(bet,res); saveDB();
+}
+/*__CHUNK2__*/
+/* ============================================================
+   DATA LAYER — real sports data
+   Primary: ESPN public API (free, no key, CORS-open)
+     - Scoreboard: games, teams, scores, status (for settlement)
+     - Summary pickcenter: real DraftKings lines (spread/total/ML)
+   Optional: The Odds API free tier (key in Admin → Data)
+   Fallback: clearly-labeled demo lines so the app always works
+   ============================================================ */
+const _cache = {};
+function cached(key, ms){ const c=_cache[key]; return (c && Date.now()-c.t < ms) ? c.v : null; }
+function setCache(key, v){ _cache[key]={t:Date.now(), v}; }
+async function espnScoreboard(leagueId){
+  const lg = CFG.LEAGUES.find(l=>l.id===leagueId);
+  const key='sb_'+leagueId; const hit=cached(key, 60000); if(hit) return hit;
+  const url = `${CFG.ESPNG_BASE||CFG.ESPN_BASE}/sports/${lg.sport}/leagues/${leagueId}/scoreboard?limit=50`;
+  const r = await fetch(url); if(!r.ok) throw new Error('espn '+r.status);
+  const d = await r.json(); setCache(key, d); return d;
+}
+function parseEvent(e, leagueId){
+  const comp = e.competitions[0] || {};
+  const t0 = comp.competitors?.find(c=>c.homeAway==='home');
+  const t1 = comp.competitors?.find(c=>c.homeAway==='away');
+  const st = e.status?.type || {};
+  return {
+    id:String(e.id), league:leagueId,
+    name:e.name, shortName:e.shortName, date:e.date,
+    homeAbbr:t0?.team?.abbreviation||'H', awayAbbr:t1?.team?.abbreviation||'A',
+    homeName:t0?.team?.displayName||'', awayName:t1?.team?.displayName||'',
+    homeScore:t0?.score!=null?+t0.score:null, awayScore:t1?.score!=null?+t1.score:null,
+    statusDesc:st.description||'', completed:!!st.completed,
+    state: st.state||'',
+  };
+}
+async function espnLines(eventId, leagueId){
+  // Real lines from ESPN's pickcenter (DraftKings). Returns {spread,total,homeML,awayML,provider} or null.
+  const lg = CFG.LEAGUES.find(l=>l.id===leagueId);
+  const key='ln_'+eventId; const hit=cached(key, 5*60000); if(hit) return hit;
+  try{
+    const url = `${CFG.ESPN_BASE}/sports/${lg.sport}/leagues/${leagueId}/summary?event=${eventId}`;
+    const r = await fetch(url); if(!r.ok) return null;
+    const d = await r.json();
+    const pc = (d.pickcenter||[])[0];
+    if(!pc || pc.spread==null) return null;
+    const out = { spread:+pc.spread, total: pc.overUnder!=null?+pc.overUnder:null,
+      homeML: pc.homeTeamOdds?.moneyLine ?? null, awayML: pc.awayTeamOdds?.moneyLine ?? null,
+      provider: pc.provider?.name||'ESPN', source:'espn' };
+    setCache(key, out); return out;
+  }catch(e){ return null; }
+}
+function demoLines(homeAbbr, awayAbbr){
+  // Clearly-labeled fallback so the app is fully usable when books haven't posted lines.
+  const h = homeAbbr.charCodeAt(0)+homeAbbr.charCodeAt(1||0);
+  const spread = -(((h*7)%13)-6) - 0.5;         // e.g. -6.5 … +6.5
+  const total = 38 + ((h*13)%17) + 0.5;          // e.g. 38.5 … 54.5
+  return { spread:+spread.toFixed(1), total:+total.toFixed(1), homeML:-110, awayML:-110,
+    provider:'Demo', source:'demo' };
+}
+async function oddsApiLines(eventHome, eventAway, leagueId){
+  // Optional enhancement: The Odds API free tier (500 req/mo). Key pasted in Admin → Data.
+  const key = DB.config.oddsApiKey && DB.config.oddsApiKey.trim();
+  if(!key) return null;
+  const sportKey = {nfl:'americanfootball_nfl',nba:'basketball_nba',mlb:'baseball_mlb',nhl:'icehockey_nhl',ncaaf:'americanfootball_ncaaf',ncaam:'basketball_ncaab',mls:'soccer_usa_mls'}[leagueId];
+  if(!sportKey) return null;
+  const ck='oa_'+leagueId; const hit=cached(ck, 10*60000); if(hit) return hit;
+  try{
+    const r = await fetch(`${CFG.ODDS_API_BASE}/sports/${sportKey}/odds/?apiKey=${encodeURIComponent(key)}&regions=us&markets=spreads,totals,h2h&oddsFormat=american`);
+    if(!r.ok) return null;
+    const games = await r.json();
+    const g = games.find(x => (x.home_team||'').toLowerCase().includes(eventHome.toLowerCase().slice(0,4)) || (x.away_team||'').toLowerCase().includes(eventAway.toLowerCase().slice(0,4)));
+    if(!g || !g.bookmakers?.length) return null;
+    const bm = g.bookmakers[0];
+    const sp = bm.markets.find(m=>m.key==='spreads')?.outcomes || [];
+    const tt = bm.markets.find(m=>m.key==='totals')?.outcomes || [];
+    const h2h = bm.markets.find(m=>m.key==='h2h')?.outcomes || [];
+    const out = {
+      spread: sp.find(o=>o.name===g.home_team)?.point ?? null,
+      total: tt[0]?.point ?? null,
+      homeML: h2h.find(o=>o.name===g.home_team)?.price ?? null,
+      awayML: h2h.find(o=>o.name===g.away_team)?.price ?? null,
+      provider: bm.title||'OddsAPI', source:'oddsapi',
+    };
+    if(out.spread==null && out.total==null) return null;
+    setCache(ck, out); return out;
+  }catch(e){ return null; }
+}
+
+/* ============================================================
+   RATINGS
+   --- Bettor Score (trust rating) ---
+   Settled real-stake bets only. New users "Unrated" until 5 settled.
+   score = 1000
+         + 400*(winRate-0.5)          // edge: 40% weight
+         + 10*min(settled,50)         // volume, capped
+         - 75*disputesLost            // dispute record
+         + 25*min(winStreak,4)        // hot streak bonus, capped
+   then × 0.98 per 30 days of inactivity. Clamped 100..2000.
+   --- Line score ---
+   Compares a locked line to consensus at creation; flags stale lines
+   when consensus moved before the taker accepts.
+   ============================================================ */
+function bettorStats(userId){
+  const u = DB.users[userId]; if(!u) return null;
+  const settled = (u.settledBets||[]).filter(s=>{
+    const b = DB.bets.find(x=>x.id===s.betId);
+    return b && (b.status==='settled'); // voids/pushes excluded from win-rate
+  });
+  const decisive = settled; // pushes already excluded in recordSettled
+  const wins = decisive.filter(s=>s.won).length;
+  return { settled:decisive.length, wins, winRate: decisive.length? wins/decisive.length : 0,
+    disputesLost:u.disputesLost||0, winStreak:u.winStreak||0, lastSettledAt:u.lastSettledAt };
+}
+function bettorScore(userId){
+  const u = DB.users[userId]; if(!u) return {rated:false, score:null};
+  const s = bettorStats(userId);
+  if(s.settled < CFG.RATED_MIN_BETS) return {rated:false, score:null, settled:s.settled};
+  let score = 1000 + 400*(s.winRate-0.5) + 10*Math.min(s.settled,50) - 75*s.disputesLost + 25*Math.min(s.winStreak,4);
+  if(s.lastSettledAt){
+    const daysInactive = (Date.now()-new Date(s.lastSettledAt).getTime())/864e5;
+    if(daysInactive>30) score *= Math.pow(CFG.DECAY_PER_30D, Math.floor(daysInactive/30));
+  }
+  score = Math.max(100, Math.min(2000, Math.round(score)));
+  return {rated:true, score, ...s};
+}
+function scoreTier(score){
+  if(score==null) return 'Unrated';
+  if(score>=1400) return 'Elite'; if(score>=1200) return 'Sharp';
+  if(score>=1000) return 'Solid'; if(score>=800) return 'Casual'; return 'Cold';
+}
+/* Line score: value of a locked line vs consensus, from a side's view.
+   Returns {delta, favors} — positive delta = points of value for `side`. */
+function lineScore(market, lockedLine, consensusLine, side){
+  if(lockedLine==null || consensusLine==null) return null;
+  let delta = 0;
+  if(market==='total'){
+    delta = side==='over' ? (lockedLine - consensusLine) : (consensusLine - lockedLine);
+  } else if(market==='spread'){
+    // spread is home-perspective; value depends on side
+    delta = side==='home' ? (consensusLine - lockedLine) : (lockedLine - consensusLine);
+    // e.g. locked -3 vs consensus -6.5: home side gets 3.5 pts of value
+  } else return null;
+  return { delta:+delta.toFixed(1), favors: delta>0.4 ? side : (delta<-0.4 ? oppositeSelection(market,side) : 'even') };
+}
+async function lineMovedWarning(bet){
+  // Re-fetch current consensus; warn taker if it moved a lot since creation.
+  const cur = await espnLines(bet.eventId, bet.league);
+  if(!cur || bet.consensusLine==null) return null;
+  const ref = bet.market==='spread' ? cur.spread : cur.total;
+  if(ref==null) return null;
+  const move = Math.abs(ref - bet.consensusLine);
+  const thresh = bet.market==='spread' ? 1.5 : 2.0;
+  return move >= thresh ? {from:bet.consensusLine, to:ref, move:+move.toFixed(1)} : null;
+}
+/*__CHUNK3__*/
+/* ============================================================
+   UI — hash router + screens
+   ============================================================ */
+const TABS = [
+  {h:'#/', t:'🏟️ Games'}, {h:'#/bets', t:'🎟️ My Bets'}, {h:'#/pots', t:'🏆 Pots'},
+  {h:'#/board', t:'📊 Battlers'}, {h:'#/admin', t:'🔐 Admin'},
+];
+function renderTabs(){
+  const h = location.hash.split('?')[0];
+  $('#main-tabs').innerHTML = TABS.map(t=>
+    `<a href="${t.h}" class="${(h===t.h)||(t.h==='#/'&& (h===''||h==='#/'))?'active':''}">${t.t}</a>`).join('');
+  const u = me();
+  $('#hdr-user').innerHTML = u
+    ? `<b>${esc(u.name)}</b><br><span class="score-pill">${fmt$(u.credits)}</span> <span class="tiny">demo</span>`
+    : `<span class="tiny">not signed in</span>`;
+}
+function route(){
+  renderTabs();
+  const raw = location.hash || '#/';
+  const [path] = raw.split('?');
+  const parts = path.replace(/^#\//,'').split('/');
+  window.scrollTo(0,0);
+  if(!me() && parts[0]!=='c'){ return renderWelcome(); }
+  if(parts[0]==='' ) return renderHome();
+  if(parts[0]==='game') return renderGame(parts[1], parts[2]);
+  if(parts[0]==='c') return renderChallengeAccept(parts.slice(1).join('/'));
+  if(parts[0]==='bets') return renderMyBets();
+  if(parts[0]==='pots') return renderPots();
+  if(parts[0]==='board') return renderBoard();
+  if(parts[0]==='admin') return renderAdmin();
+  return renderHome();
+}
+window.addEventListener('hashchange', route);
+
+function renderWelcome(){
+  $('#app').innerHTML = `
+  <div class="card" style="text-align:center;padding:36px 20px;">
+    <div style="font-size:44px;">⚔️</div>
+    <h2 style="margin:8px 0;">Battle Bets</h2>
+    <p class="mut">Challenge friends head-to-head on real games with real lines.<br>
+    Every stake splits <b>80/20</b> — 80% is the bet, 20% feeds the pot.<br>Winner takes the pot.</p>
+    <label style="text-align:left;">Pick your battler name</label>
+    <input id="wn" placeholder="e.g. Anthony" maxlength="24">
+    <button class="btn btn-green btn-block" onclick="doSignup()">Enter the arena — get $100 demo</button>
+    <p class="tiny mut" style="margin-top:12px;">Demo credits only. Not real gambling.</p>
+  </div>`;
+}
+function doSignup(){
+  const name = ($('#wn').value||'').trim() || 'Battler'+Math.floor(Math.random()*999);
+  const id = uid('u');
+  DB.users[id] = {id, name, createdAt:new Date().toISOString(), credits:CFG.STARTING_CREDITS,
+    settledBets:[], disputesLost:0, winStreak:0, lastSettledAt:null};
+  DB.ledger.push({id:uid('L'), ts:new Date().toISOString(), userId:id, battleId:null, type:'grant',
+    amount:CFG.STARTING_CREDITS, note:'Welcome demo credits', balanceAfter:CFG.STARTING_CREDITS});
+  audit('system', null, 'signup', `${name} joined — granted ${fmt$(CFG.STARTING_CREDITS)} demo credits.`);
+  setMe(id); saveDB(); location.hash='#/'; route();
+}
+
+/* ---------- Home: games list ---------- */
+let homeLeague = 'nfl', homeEvents = [], homeLoading=false;
+async function renderHome(){
+  const app = $('#app');
+  app.innerHTML = `
+  <div class="card"><h3>🏟️ Upcoming battles</h3>
+    <p class="small mut">Real games, real lines (ESPN/DraftKings). Pick a game, lock a line, battle the house or challenge a friend.</p>
+    <div class="adm-tabs" id="lg-tabs">${CFG.LEAGUES.map(l=>`<button data-lg="${l.id}" class="${l.id===homeLeague?'sel':''}">${l.label}</button>`).join('')}</div>
+    <div id="ev-list"><p class="mut">Loading games…</p></div>
+  </div>
+  <div class="card"><h3>How the money works</h3>
+    <div class="split80">
+      <div><div class="n" style="color:var(--navy)">80%</div><div class="tiny mut">THE BET — house keeps losers', pays winners'</div></div>
+      <div><div class="n" style="color:var(--green-d)">20%</div><div class="tiny mut">THE POT — winner takes it all</div></div>
+    </div>
+    <p class="small mut">$5 stake → $4 bet + $1 pot. Beat your friend heads-up: you get your $4 back + the whole pot. House keeps the loser's $4.</p>
+  </div>`;
+  app.querySelectorAll('#lg-tabs button').forEach(b=>b.onclick=()=>{homeLeague=b.dataset.lg; renderHome();});
+  loadEvents();
+}
+async function loadEvents(){
+  const el = $('#ev-list'); if(!el) return;
+  homeLoading=true;
+  try{
+    const d = await espnScoreboard(homeLeague);
+    homeEvents = (d.events||[]).map(e=>parseEvent(e, homeLeague));
+    // sort: live first, then upcoming, then finals
+    const rank = e => e.completed?2 : (e.state==='in'?0:1);
+    homeEvents.sort((a,b)=> rank(a)-rank(b) || new Date(a.date)-new Date(b.date));
+    el.innerHTML = homeEvents.map(evCard).join('') || '<p class="mut">No games right now.</p>';
+    // lazy-load lines for upcoming games (first 8)
+    homeEvents.filter(e=>!e.completed && e.state!=='in').slice(0,8).forEach(async e=>{
+      const ln = await espnLines(e.id, homeLeague);
+      const slot = document.getElementById('ln-'+e.id);
+      if(slot) slot.innerHTML = linesHtml(ln, e);
+    });
+  }catch(err){ el.innerHTML = `<div class="errbox">Couldn't reach ESPN (${esc(err.message)}). Check connection and retry.</div>`; }
+  homeLoading=false;
+}
+function evCard(e){
+  const live = e.state==='in';
+  const score = e.completed||live ? `<span class="score-pill">${e.awayScore} - ${e.homeScore}</span>` : '';
+  const when = e.completed ? `<span class="chip chip-void">Final</span>` : live ? `<span class="chip chip-live"><span class="live-dot"></span>Live</span>` : `<span class="small mut">${fmtTime(e.date)}</span>`;
+  return `<div class="card" style="margin-bottom:10px;">
+    <div class="row-flex"><div class="grow">
+      <div class="teamline"><span class="abbr">${esc(e.awayAbbr)}</span><span class="nm">${esc(e.awayName)}</span></div>
+      <div class="teamline"><span class="abbr">${esc(e.homeAbbr)}</span><span class="nm">${esc(e.homeName)}</span></div>
+    </div><div style="text-align:right;">${score}<br>${when}</div></div>
+    <div id="ln-${e.id}" class="oddsline"><span class="tiny mut">loading lines…</span></div>
+    ${(!e.completed && e.state!=='in') ? `<div class="row-flex" style="margin-top:10px;">
+      <a class="btn btn-navy btn-sm grow" href="#/game/${e.league}/${e.id}">Bet vs House</a>
+      <a class="btn btn-green btn-sm grow" href="#/game/${e.league}/${e.id}?mode=challenge">⚔️ Challenge</a>
+    </div>`:''}
+  </div>`;
+}
+function linesHtml(ln, e){
+  if(!ln) return `<span class="tiny mut">Lines not posted yet</span>`;
+  const tag = ln.source==='demo' ? '<span class="demo-tag">DEMO</span>' : `<span class="tiny mut">via ${esc(ln.provider)}</span>`;
+  const sp = ln.spread!=null ? `<span class="oddbox">Spread <b>${e.homeAbbr} ${ln.spread>0?'+':''}${ln.spread}</b></span>`:'';
+  const tot = ln.total!=null ? `<span class="oddbox">Total <b>O/U ${ln.total}</b></span>`:'';
+  const ml = (ln.homeML!=null) ? `<span class="oddbox">ML <b>${e.awayAbbr} ${ln.awayML>0?'+':''}${ln.awayML} / ${e.homeAbbr} ${ln.homeML>0?'+':''}${ln.homeML}</b></span>`:'';
+  return sp+tot+ml+tag;
+}
+
+/* ---------- Game detail + bet slip builder ---------- */
+let G = null; // current game context
+async function renderGame(leagueId, eventId){
+  const app=$('#app');
+  const q = new URLSearchParams((location.hash.split('?')[1]||''));
+  const mode = q.get('mode')==='challenge' ? 'challenge' : 'house';
+  app.innerHTML = `<div class="card"><p class="mut">Loading game…</p></div>`;
+  try{
+    const d = await espnScoreboard(leagueId);
+    const raw = (d.events||[]).find(e=>String(e.id)===String(eventId));
+    if(!raw){ app.innerHTML=`<div class="card"><div class="errbox">Game not found (it may have aged off the scoreboard).</div><a href="#/">← Back</a></div>`; return; }
+    const e = parseEvent(raw, leagueId);
+    let ln = await espnLines(eventId, leagueId);
+    let lineSource = ln? ln.source : 'demo';
+    if(!ln){ ln = demoLines(e.homeAbbr, e.awayAbbr); lineSource='demo'; }
+    // optional: try The Odds API to sharpen consensus
+    G = {e, ln, lineSource, mode, market:'spread', selection:'home', stake:5, customLine:null};
+    renderGameCard();
+  }catch(err){ app.innerHTML=`<div class="card"><div class="errbox">Couldn't load game: ${esc(err.message)}</div><a href="#/">← Back</a></div>`; }
+}
+function renderGameCard(){
+  const {e, ln, lineSource, mode} = G;
+  const demoTag = lineSource==='demo' ? '<span class="demo-tag">DEMO LINES</span>' : '';
+  const app=$('#app');
+  app.innerHTML = `
+  <div class="card">
+    <a href="#/" class="small">← All games</a>
+    <h3 style="margin-top:8px;">${esc(e.awayAbbr)} @ ${esc(e.homeAbbr)} ${demoTag}</h3>
+    <p class="small mut">${esc(e.awayName)} at ${esc(e.homeName)} · ${fmtTime(e.date)} ${lineSource!=='demo'?`· lines via ${esc(ln.provider)}`:''}</p>
+    <div class="oddsline">
+      ${ln.spread!=null?`<span class="oddbox">Spread <b>${e.homeAbbr} ${ln.spread>0?'+':''}${ln.spread}</b></span>`:''}
+      ${ln.total!=null?`<span class="oddbox">Total <b>O/U ${ln.total}</b></span>`:''}
+      ${ln.homeML!=null?`<span class="oddbox">ML <b>${e.awayAbbr} ${ln.awayML>0?'+':''}${ln.awayML} / ${e.homeAbbr} ${ln.homeML>0?'+':''}${ln.homeML}</b></span>`:''}
+    </div>
+    <div class="adm-tabs" style="margin-top:12px;">
+      <button data-m="house" class="${mode==='house'?'sel':''}">🏠 Vs House</button>
+      <button data-m="challenge" class="${mode==='challenge'?'sel':''}">⚔️ Challenge a friend</button>
+    </div>
+    <div id="mode-note"></div>
+    <label>Market</label>
+    <div class="adm-tabs" id="mkt-tabs">
+      <button data-k="spread" class="sel">Spread</button>
+      <button data-k="total">Total (O/U)</button>
+      <button data-k="moneyline">Moneyline</button>
+    </div>
+    <label>Your side</label>
+    <div class="side-pick" id="side-pick"></div>
+    ${mode==='challenge'?`<label>Line (locked for both battlers) <span class="tiny mut">— set your own or use consensus</span></label>
+    <div class="row-flex"><input id="custom-line" type="number" step="0.5" placeholder="Consensus: ${mktLine()}" style="margin:0;"><button class="btn btn-ghost btn-sm" onclick="useConsensus()">Use consensus</button></div>
+    <div id="line-score-box"></div>`:''}
+    <label>Stake</label>
+    <div class="stake-pick" id="stake-pick">${CFG.STAKES.map(s=>`<button data-s="${s}" class="${s===5?'sel':''}">$${s}</button>`).join('')}</div>
+    <div class="slip" id="slip-preview"></div>
+    <button class="btn ${mode==='challenge'?'btn-green':'btn-navy'} btn-block" onclick="placeBet()">${mode==='challenge'?'⚔️ Create challenge':'🎟️ Lock bet vs house'}</button>
+    <div id="bet-msg"></div>
+  </div>`;
+  app.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{G.mode=b.dataset.m; renderGameCard();});
+  app.querySelectorAll('#mkt-tabs button').forEach(b=>b.onclick=()=>{G.market=b.dataset.k; G.selection = G.market==='total'?'over':'home'; G.customLine=null; renderGameCard();});
+  paintSides(); paintStakes(); paintSlip(); paintModeNote();
+  const cl=$('#custom-line'); if(cl){ cl.oninput=()=>{ G.customLine = cl.value===''? null : +cl.value; paintSlip(); paintLineScore(); }; }
+  paintLineScore();
+}
+function mktLine(){ const {ln,market}=G; return market==='spread'?ln.spread : market==='total'?ln.total : null; }
+function paintModeNote(){
+  const el=$('#mode-note'); if(!el) return;
+  el.innerHTML = G.mode==='challenge'
+    ? `<div class="okbox">⚔️ <b>Challenge mode:</b> you take one side, your friend takes the other. Same locked line, same stake. Winner takes the pot — the house keeps the loser's bet portion.</div>`
+    : `<div class="warn">🏠 <b>Vs house:</b> win and the house pays your wager out + you take the pot. Lose and the house keeps it all.</div>`;
+}
+function paintSides(){
+  const el=$('#side-pick'); const {e,market}=G;
+  const opts = market==='spread'||market==='moneyline'
+    ? [['home',`${e.homeAbbr}`],['away',`${e.awayAbbr}`]]
+    : [['over','Over '+mktLine()],['under','Under '+mktLine()]];
+  el.innerHTML = opts.map(([v,l])=>`<button data-v="${v}" class="${G.selection===v?'sel':''}">${l}</button>`).join('');
+  el.querySelectorAll('button').forEach(b=>b.onclick=()=>{G.selection=b.dataset.v; paintSides(); paintSlip(); paintLineScore();});
+}
+function paintStakes(){
+  const el=$('#stake-pick');
+  el.querySelectorAll('button').forEach(b=>b.onclick=()=>{G.stake=+b.dataset.s; el.querySelectorAll('button').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); paintSlip();});
+}
+function useConsensus(){ G.customLine=null; const cl=$('#custom-line'); if(cl) cl.value=''; paintSlip(); paintLineScore(); }
+function lockedLine(){ return G.customLine!=null ? G.customLine : mktLine(); }
+function paintLineScore(){
+  const box=$('#line-score-box'); if(!box) return;
+  if(G.mode!=='challenge' || G.market==='moneyline'){ box.innerHTML=''; return; }
+  const ls = lineScore(G.market, lockedLine(), mktLine(), G.selection);
+  if(!ls || G.customLine==null){ box.innerHTML = `<p class="tiny mut">Line score: using consensus line — rated even.</p>`; return; }
+  const fav = ls.favors==='even' ? 'Even line.' : ls.delta>0 ? `Favors <b>you</b> by ${ls.delta} pts.` : `Favors <b>taker</b> by ${Math.abs(ls.delta)} pts.`;
+  box.innerHTML = `<div class="${ls.delta<-0.4?'warn':'okbox'}"><b>Line score:</b> locked ${lockedLine()} vs consensus ${mktLine()} — ${fav}</div>`;
+}
+function paintSlip(){
+  const el=$('#slip-preview'); if(!el) return;
+  const {e,mode,market,selection,stake,lineSource}=G;
+  const {wager,pot}=splitStake(stake);
+  const tmp={homeAbbr:e.homeAbbr,awayAbbr:e.awayAbbr,market,selection,line:lockedLine()};
+  el.innerHTML=`
+    <div class="k">Bet slip — ${mode==='challenge'?'⚔️ Challenge':'🏠 Vs House'}</div>
+    <div class="v">${esc(e.awayAbbr)} @ ${esc(e.homeAbbr)} — ${esc(describeSelectionFor(tmp,selection))}${market!=='moneyline'?` <span class="tiny mut">(locked${lineSource==='demo'?' · demo':''})</span>`:''}</div>
+    <div class="split80">
+      <div><div class="k">The bet (80%)</div><div class="n">${fmt$(wager)}</div><div class="tiny mut">${mode==='challenge'?'loser\'s goes to house':'house pays winners'}</div></div>
+      <div><div class="k">The pot (20%)</div><div class="n">${fmt$(pot)}</div><div class="tiny mut">winner takes it</div></div>
+    </div>
+    <div class="tiny mut">Stake ${fmt$(stake)} · settles from final score via ESPN · ${CFG.DISPUTE_WINDOW_H}h dispute window</div>`;
+}
+async function placeBet(){
+  const msg=$('#bet-msg'); const u=me();
+  try{
+    if(u.credits < G.stake) throw new Error('Not enough demo credits.');
+    const {e,ln,lineSource,mode,market,selection,stake}=G;
+    const line = market==='moneyline' ? (selection==='home'?ln.homeML:ln.awayML) : lockedLine();
+    const bet = createBet({ mode, eventId:e.id, league:e.league, homeAbbr:e.homeAbbr, awayAbbr:e.awayAbbr,
+      homeName:e.homeName, awayName:e.awayName, eventDate:e.date, market, selection, line,
+      consensusLine: lineSource==='demo'?null:mktLine(), lineSource, stake, customLine: G.customLine!=null });
+    if(mode==='challenge'){
+      const link = challengeLink(bet);
+      msg.innerHTML=`<div class="okbox">⚔️ <b>Challenge created!</b> Share this link — your friend opens it, takes the other side, and you battle:<br>
+        <input id="ch-link" readonly value="${esc(link)}" onclick="this.select()">
+        <button class="btn btn-green btn-sm" style="margin-top:8px;" onclick="copyChallenge()">Copy link</button>
+        <a class="btn btn-ghost btn-sm" style="margin-top:8px;" href="#/bets">View my bets →</a></div>`;
+    } else {
+      msg.innerHTML=`<div class="okbox">🎟️ <b>Bet locked!</b> ${esc(describeSelection(bet))} @ ${fmt$(stake)}. Good luck.<br><a href="#/bets">View my bets →</a></div>`;
+    }
+    renderTabs();
+  }catch(err){ msg.innerHTML=`<div class="errbox">${esc(err.message==='insufficient'?'Not enough demo credits.':err.message)}</div>`; }
+}
+function challengePayload(bet){
+  return { v:1, id:bet.id, eventId:bet.eventId, league:bet.league, homeAbbr:bet.homeAbbr, awayAbbr:bet.awayAbbr,
+    homeName:bet.homeName, awayName:bet.awayName, eventDate:bet.eventDate, market:bet.market, selection:bet.selection,
+    line:bet.line, consensusLine:bet.consensusLine, lineSource:bet.lineSource, stake:bet.stake,
+    creatorId:bet.creatorId, creatorName:bet.creatorName, createdAt:bet.createdAt };
+}
+function challengeLink(bet){
+  const p = btoa(unescape(encodeURIComponent(JSON.stringify(challengePayload(bet)))))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  return location.origin + location.pathname + '#/c/' + p;
+}
+function copyChallenge(){ const i=$('#ch-link'); i.select(); document.execCommand('copy');
+  try{ navigator.clipboard.writeText(i.value); }catch(e){} alert('Challenge link copied — send it to your friend.'); }
+
+/* ---------- Accept a challenge (from share link) ---------- */
+async function renderChallengeAccept(payload){
+  const app=$('#app');
+  let p=null;
+  try{ p = JSON.parse(decodeURIComponent(escape(atob(payload.replace(/-/g,'+').replace(/_/g,'/'))))); }
+  catch(e){ app.innerHTML=`<div class="card"><div class="errbox">Bad challenge link.</div></div>`; return; }
+  const existing = DB.bets.find(b=>b.id===p.id);
+  if(existing && existing.takerId){ app.innerHTML=`<div class="card"><h3>⚔️ Battle ${esc(p.id)}</h3><p>This battle is already matched. Check <a href="#/bets">My Bets</a>.</p></div>`; return; }
+  const u=me();
+  const takerSel = oppositeSelection(p.market, p.selection);
+  const tmp={homeAbbr:p.homeAbbr,awayAbbr:p.awayAbbr,market:p.market,selection:takerSel,line:p.line};
+  const warn = existing ? null : await lineMovedWarning({eventId:p.eventId, league:p.league, market:p.market, consensusLine:p.consensusLine});
+  app.innerHTML=`<div class="card" style="text-align:center;">
+    <div style="font-size:40px;">⚔️</div>
+    <h3>${esc(p.creatorName)} challenges you</h3>
+    <p class="mut">${esc(p.awayName)} @ ${esc(p.homeName)}<br>${fmtTime(p.eventDate)}</p>
+    <div class="slip" style="text-align:left;">
+      <div class="k">The battle</div>
+      <div class="v">${esc(p.creatorName)}: ${esc(describeSelectionFor({homeAbbr:p.homeAbbr,awayAbbr:p.awayAbbr,market:p.market,selection:p.selection,line:p.line},p.selection))}</div>
+      <div class="v" style="color:var(--blue)">You: ${esc(describeSelectionFor(tmp,takerSel))}</div>
+      <div class="split80">
+        <div><div class="k">The bet (80%)</div><div class="n">${fmt$(p.stake*0.8)}</div></div>
+        <div><div class="k">The pot (20%)</div><div class="n">${fmt$(p.stake*0.4)}</div><div class="tiny mut">both sides in</div></div>
+      </div>
+      <div class="tiny mut">Stake ${fmt$(p.stake)} each · line locked at ${p.line} (${p.lineSource}) · settles from ESPN final</div>
+    </div>
+    ${warn?`<div class="warn"><b>⚠️ Line moved!</b> Consensus was ${warn.from}, now ${warn.to} (${warn.move} pts). The locked line still stands — accept with eyes open.</div>`:''}
+    ${!u?`<p class="mut">Enter a battler name first:</p><input id="wn2" placeholder="Your name" maxlength="24">`:''}
+    <button class="btn btn-green btn-block" onclick="acceptFromLink('${esc(payload)}')">⚔️ Accept — battle for ${fmt$(p.stake)}</button>
+    <p class="tiny mut">Winner gets their ${fmt$(p.stake*0.8)} back + the ${fmt$(p.stake*0.4)} pot. Loser's ${fmt$(p.stake*0.8)} → house.</p>
+  </div>`;
+  app._payload = p;
+}
+async function acceptFromLink(payload){
+  const p = $('#app')._payload;
+  let u = me();
+  if(!u){ const nm=($('#wn2').value||'').trim()||'Battler'+Math.floor(Math.random()*999);
+    const id=uid('u'); DB.users[id]={id,name:nm,createdAt:new Date().toISOString(),credits:CFG.STARTING_CREDITS,settledBets:[],disputesLost:0,winStreak:0,lastSettledAt:null};
+    postLedger(id,null,'grant',CFG.STARTING_CREDITS,'Welcome demo credits'); setMe(id); u=DB.users[id]; }
+  try{
+    let bet = DB.bets.find(b=>b.id===p.id);
+    if(!bet){
+      // mirror the creator's bet on this device
+      const {wager,pot}=splitStake(p.stake);
+      bet={ id:p.id, createdAt:p.createdAt, creatorId:p.creatorId, creatorName:p.creatorName, mode:'challenge',
+        eventId:p.eventId, league:p.league, homeAbbr:p.homeAbbr, awayAbbr:p.awayAbbr, homeName:p.homeName, awayName:p.awayName,
+        eventDate:p.eventDate, market:p.market, selection:p.selection, line:p.line, consensusLine:p.consensusLine,
+        lineSource:p.lineSource, customLine:false, takerId:null, takerName:null, stake:p.stake, wager, potShare:pot,
+        status:'open', grade:null, dispute:null, settledAt:null };
+      DB.bets.push(bet);
+      // creator's stake is accounted on their device; note the mirror
+      audit(u.id, bet.id, 'challenge_mirrored', `Challenge ${bet.id} mirrored from link (creator ${p.creatorName}).`);
+    }
+    acceptChallenge(bet.id);
+    location.hash='#/bets'; route();
+  }catch(err){ alert(err.message==='insufficient'?'Not enough demo credits.':err.message); }
+}
+/*__CHUNK4__*/
+/* ---------- My Bets ---------- */
+function myBets(){ const u=me(); return DB.bets.filter(b=>b.creatorId===u.id||b.takerId===u.id).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)); }
+function renderMyBets(){
+  const app=$('#app'); const bets=myBets();
+  app.innerHTML=`<div class="card"><div class="row-flex"><h3 class="grow">🎟️ My Bets</h3>
+    <button class="btn btn-ghost btn-sm" onclick="gradeOpenBets(true)">↻ Check finals</button></div>
+    <div id="grade-msg"></div>
+    ${bets.length? bets.map(betCard).join('') : `<p class="mut">No battles yet. <a href="#/">Pick a game →</a></p>`}
+  </div>`;
+  bindBetCards();
+}
+function statusChip(s){ return `<span class="chip chip-${s}">${s.toUpperCase()}</span>`; }
+function betCard(b){
+  const u=me(); const iAmCreator=b.creatorId===u.id;
+  const mySide = iAmCreator? b.selection : (b.takerSelection||oppositeSelection(b.market,b.selection));
+  const tmp={homeAbbr:b.homeAbbr,awayAbbr:b.awayAbbr,market:b.market,selection:mySide,line:b.line};
+  const opp = b.mode==='challenge' ? (iAmCreator? (b.takerName||'waiting for taker…') : b.creatorName) : 'the House';
+  const res = b.grade? `<div class="small" style="margin-top:6px;"><b>Final:</b> ${b.grade.homeScore}-${b.grade.awayScore} ${b.awayAbbr}@${b.homeAbbr} → <b style="color:${b.grade.result==='win'?'var(--green-d)':b.grade.result==='loss'?'var(--red)':'var(--mut)'}">${resultForMe(b).toUpperCase()}</b></div>`:'';
+  const pot = b.mode==='challenge' ? fmt$(b.potShare*2) : fmt$(b.potShare);
+  return `<div class="card" style="margin-bottom:10px;" data-bet="${b.id}">
+    <div class="row-flex"><div class="grow"><b>${esc(b.awayAbbr)} @ ${esc(b.homeAbbr)}</b>
+      <span class="tiny mut">${b.league.toUpperCase()} · ${fmtTime(b.eventDate)}</span></div>${statusChip(b.status)}</div>
+    <div class="small" style="margin-top:6px;">You: <b>${esc(describeSelectionFor(tmp,mySide))}</b> · vs ${esc(opp)} · ${fmt$(b.stake)} <span class="tiny mut">($${b.wager} bet + $${b.potShare} pot)</span></div>
+    ${res}
+    <div class="row-flex" style="margin-top:8px;">
+      <button class="btn btn-ghost btn-sm" data-act="slip">📋 Bet slip</button>
+      ${b.mode==='challenge'&&b.status==='open'&&iAmCreator?`<button class="btn btn-green btn-sm" data-act="share">🔗 Copy challenge link</button>`:''}
+      ${b.status==='settled'?`<button class="btn btn-ghost btn-sm" data-act="dispute">⚠️ Dispute</button>`:''}
+    </div>
+    <div class="slip hidden" data-slip></div>
+  </div>`;
+}
+function resultForMe(b){
+  if(!b.grade) return '';
+  const u=me(); const iAmCreator=b.creatorId===u.id;
+  if(b.grade.result==='push'||b.grade.result==='void') return b.grade.result;
+  const creatorWon = b.grade.result==='win';
+  return (iAmCreator===creatorWon)?'win':'loss';
+}
+function bindBetCards(){
+  document.querySelectorAll('[data-bet]').forEach(card=>{
+    const bet=DB.bets.find(b=>b.id===card.dataset.bet);
+    card.querySelector('[data-act="slip"]').onclick=()=>{ const s=card.querySelector('[data-slip]'); s.classList.toggle('hidden'); if(!s.classList.contains('hidden')) s.innerHTML=slipDetail(bet); };
+    const sh=card.querySelector('[data-act="share"]'); if(sh) sh.onclick=()=>{ const l=challengeLink(bet); try{navigator.clipboard.writeText(l);}catch(e){} prompt('Copy your challenge link:', l); };
+    const dp=card.querySelector('[data-act="dispute"]'); if(dp) dp.onclick=()=>showDisputeForm(bet);
+  });
+}
+function slipDetail(b){
+  const ls = (b.market!=='moneyline' && b.consensusLine!=null)
+    ? lineScore(b.market, b.line, b.consensusLine, b.selection) : null;
+  const rows=[
+    ['Bet ID', b.id], ['Created', fmtTime(b.createdAt)], ['Mode', b.mode==='challenge'?'⚔️ Challenge':'🏠 Vs House'],
+    ['Event', `${b.awayName} @ ${b.homeName} — ${fmtTime(b.eventDate)}`],
+    ['Market', b.market], ['Creator', `${esc(b.creatorName)}: ${esc(describeSelectionFor({homeAbbr:b.homeAbbr,awayAbbr:b.awayAbbr,market:b.market,selection:b.selection,line:b.line},b.selection))}`],
+  ];
+  if(b.takerId) rows.push(['Taker', `${esc(b.takerName)}: ${esc(describeSelectionFor({homeAbbr:b.homeAbbr,awayAbbr:b.awayAbbr,market:b.market,selection:b.takerSelection,line:b.line},b.takerSelection))}`]);
+  rows.push(['Locked line', `${b.line} <span class="tiny mut">(source: ${b.lineSource}${b.customLine?' · custom':''})</span>`]);
+  if(b.consensusLine!=null) rows.push(['Consensus at creation', b.consensusLine]);
+  if(ls) rows.push(['Line score', `${ls.delta>0?'+':''}${ls.delta} pts → favors <b>${ls.favors==='even'?'neither (even)':ls.favors}</b>`]);
+  rows.push(['Stake', `${fmt$(b.stake)} = ${fmt$(b.wager)} bet (80%) + ${fmt$(b.potShare)} pot (20%)`]);
+  rows.push(['Status', statusChip(b.status)]);
+  if(b.grade) rows.push(['Grade', `${b.grade.result.toUpperCase()} — ${esc(b.grade.rule)} <span class="tiny mut">(${esc(b.grade.source)}, ${fmtTime(b.grade.gradedAt)})</span>`]);
+  if(b.settledAt) rows.push(['Settled', fmtTime(b.settledAt)]);
+  const entries = DB.ledger.filter(e=>e.battleId===b.id);
+  const led = entries.map(e=>`<div class="tiny">${fmtTime(e.ts)} · ${esc(e.type)} · <b>${e.amount>=0?'+':''}${fmt$(e.amount)}</b> <span class="mut">${esc(e.note)}</span></div>`).join('');
+  const audits = DB.audit.filter(a=>a.battleId===b.id).map(a=>`<div class="audit"><b>${fmtTime(a.ts)}</b> [${esc(a.kind)}] ${esc(a.text)}</div>`).join('');
+  return `<div class="k">Bet slip — immutable record</div>${rows.map(r=>`<div class="small"><span class="mut">${r[0]}:</span> <b>${r[1]}</b></div>`).join('')}
+    <div class="k" style="margin-top:8px;">Ledger for this battle</div>${led||'<div class="tiny mut">—</div>'}
+    <div class="k" style="margin-top:8px;">Audit trail</div>${audits||'<div class="tiny mut">—</div>'}`;
+}
+function showDisputeForm(bet){
+  const r = prompt('Why is the grade wrong? (reason)');
+  if(!r) return;
+  const evd = prompt('Evidence (what should it be and why):')||'';
+  try{ fileDispute(bet.id, r, evd); alert('Dispute filed. Admin reviews within the app. You have 24h from grading.'); route(); }
+  catch(e){ alert(e.message==='window-closed'?'The 24h dispute window has closed.':'Could not file dispute.'); }
+}
+
+/* ---------- Pots ---------- */
+function renderPots(){
+  const app=$('#app');
+  const open = DB.bets.filter(b=>['open','matched','live'].includes(b.status));
+  const done = DB.bets.filter(b=>b.status==='settled').slice(-10).reverse();
+  app.innerHTML=`<div class="card"><h3>🏆 Pot tracker</h3>
+    <p class="small mut">Every stake feeds 20% into its battle's pot. Winner takes the pot.</p>
+    ${open.length? open.map(b=>{const pot=b.mode==='challenge'?b.potShare*2:b.potShare;
+      return `<div class="lead-row"><div class="grow"><b>${esc(b.awayAbbr)} @ ${esc(b.homeAbbr)}</b><br><span class="tiny mut">${b.id} · ${b.mode} · ${statusChip(b.status)}</span></div><span class="score-pill">${fmt$(pot)}</span></div>`;}).join('')
+      : '<p class="mut">No open battles.</p>'}
+    <h3 style="margin-top:16px;">Recent pots won</h3>
+    ${done.length? done.map(b=>{const pot=b.mode==='challenge'?b.potShare*2:b.potShare;
+      const w = b.grade ? (b.grade.result==='win'?b.creatorName:(b.takerName||b.creatorName)) : '—';
+      return `<div class="lead-row"><div class="grow"><b>${esc(w)}</b> took <b>${fmt$(pot)}</b><br><span class="tiny mut">${esc(b.awayAbbr)} @ ${esc(b.homeAbbr)} · ${b.id}</span></div></div>`;}).join('')
+      : '<p class="mut">No settled battles yet.</p>'}
+  </div>`;
+}
+
+/* ---------- Leaderboard ---------- */
+function renderBoard(){
+  const app=$('#app');
+  const rows = Object.values(DB.users).map(u=>({u, s:bettorScore(u.id)})).filter(r=>r.s.rated)
+    .sort((a,b)=>b.s.score-a.s.score);
+  app.innerHTML=`<div class="card"><h3>📊 Top battlers</h3>
+    <p class="small mut">Bettor Score — settled real-stake battles only. Unrated until 5 settled.</p>
+    ${rows.length? rows.map((r,i)=>`<div class="lead-row"><div class="rank">${i+1}</div>
+      <div class="grow"><b>${esc(r.u.name)}</b><br><span class="tiny mut">${scoreTier(r.s.score)} · ${Math.round(r.s.winRate*100)}% win · ${r.s.settled} settled · ${r.s.disputesLost} disputes lost</span></div>
+      <span class="score-pill">${r.s.score}</span></div>`).join('')
+      : '<p class="mut">No rated battlers yet — settle 5 battles to get rated.</p>'}
+    <h3 style="margin-top:16px;">How the score works</h3>
+    <p class="small mut">1000 base + win-rate edge (up to ±200) + volume (up to +500) − 75 per lost dispute + hot-streak bonus (up to +100). Decays 2% per 30 idle days. Only settled battles count — no farming.</p>
+  </div>`;
+}
+
+/* ---------- Auto-grading loop ---------- */
+let grading=false;
+async function gradeOpenBets(manual){
+  if(grading) return; grading=true;
+  const msg=$('#grade-msg');
+  try{
+    const open = DB.bets.filter(b=>['open','matched','live'].includes(b.status));
+    let graded=0, voided=0;
+    const byLeague={};
+    open.forEach(b=>{ (byLeague[b.league]=byLeague[b.league]||[]).push(b); });
+    for(const lg of Object.keys(byLeague)){
+      let d; try{ d=await espnScoreboard(lg); }catch(e){ continue; }
+      for(const b of byLeague[lg]){
+        const raw=(d.events||[]).find(e=>String(e.id)===String(b.eventId));
+        if(!raw){
+          // event aged off the board: if long past, void it
+          if(Date.now()-new Date(b.eventDate).getTime() > 36e5*30){ voidBet(b,'Event left the scoreboard with no result (postponed/cancelled).'); voided++; }
+          continue;
+        }
+        const ev=parseEvent(raw, lg);
+        if(ev.completed && ev.homeScore!=null){
+          if(b.status==='open'){ /* challenge never matched — void, refund creator */ voidBet(b,'Challenge expired unmatched.'); voided++; continue; }
+          settleBet(b, ev.homeScore, ev.awayScore, 'ESPN final'); graded++;
+        } else if(ev.state==='in' && b.status!=='live'){ b.status='live'; saveDB(); }
+        else if(ev.statusDesc.toLowerCase().includes('postponed')||ev.statusDesc.toLowerCase().includes('cancelled')){
+          voidBet(b,'Event '+ev.statusDesc.toLowerCase()+'.'); voided++;
+        } else if(Date.now()-new Date(b.eventDate).getTime() > 36e5*26 && !ev.completed){
+          voidBet(b,'No result 26h after start (postponement rule).'); voided++;
+        }
+      }
+    }
+    if(msg) msg.innerHTML = `<div class="okbox">Checked finals: ${graded} graded, ${voided} voided.</div>`;
+    renderTabs();
+    if(manual) route();
+  }finally{ grading=false; }
+}
+/*__CHUNK5__*/
+/* ============================================================
+   ADMIN — login-protected backside for Anthony
+   ============================================================ */
+function isAdmin(){ return sessionStorage.getItem('bb_admin')==='1'; }
+function renderAdmin(){
+  const app=$('#app');
+  if(!isAdmin()){
+    app.innerHTML=`<div class="card" style="max-width:420px;margin:30px auto;text-align:center;">
+      <h3>🔐 Admin</h3><p class="small mut">Battles, grading audit, disputes, ratings, data keys, credits.</p>
+      <input id="apw" type="password" placeholder="Admin password">
+      <button class="btn btn-navy btn-block" onclick="adminLogin()">Unlock</button>
+      <div id="amsg"></div></div>`;
+    return;
+  }
+  const tab = app._admTab || 'bets';
+  app.innerHTML=`<div class="card"><div class="row-flex"><h3 class="grow">🔐 Admin</h3>
+    <button class="btn btn-ghost btn-sm" onclick="sessionStorage.removeItem('bb_admin');route();">Lock</button></div>
+    <div class="adm-tabs" id="adm-tabs">
+      ${[['bets','🎟️ Bets'],['audit','📜 Audit log'],['disputes','⚠️ Disputes'],['ratings','📊 Ratings'],['data','🔌 Data & keys'],['credits','💰 Credits']].map(([k,l])=>`<button data-t="${k}" class="${tab===k?'sel':''}">${l}</button>`).join('')}
+    </div><div id="adm-body"></div></div>`;
+  app.querySelectorAll('#adm-tabs button').forEach(b=>b.onclick=()=>{app._admTab=b.dataset.t; renderAdmin();});
+  ({bets:admBets, audit:admAudit, disputes:admDisputes, ratings:admRatings, data:admData, credits:admCredits})[tab]();
+}
+function adminLogin(){
+  if($('#apw').value===DB.config.adminPw){ sessionStorage.setItem('bb_admin','1'); audit('admin',null,'admin_login','Admin unlocked the panel.'); route(); }
+  else $('#amsg').innerHTML=`<div class="errbox">Wrong password.</div>`;
+}
+function admBets(){
+  const el=$('#adm-body');
+  const bets=[...DB.bets].reverse();
+  el.innerHTML=`<p class="small mut">${bets.length} bets · house balance <b>${fmt$(DB.houseBalance)}</b></p>
+  <div style="overflow-x:auto;"><table><tr><th>ID</th><th>Battle</th><th>Mode</th><th>Stake</th><th>Status</th><th></th></tr>
+  ${bets.map(b=>`<tr><td class="tiny">${b.id}</td><td>${esc(b.awayAbbr)}@${esc(b.homeAbbr)}<br><span class="tiny mut">${esc(b.creatorName)}${b.takerName?' vs '+esc(b.takerName):''}</span></td>
+    <td class="tiny">${b.mode}</td><td>${fmt$(b.stake)}</td><td>${statusChip(b.status)}</td>
+    <td>${['open','matched','live'].includes(b.status)?`<button class="btn btn-ghost btn-sm" onclick="admGradePrompt('${b.id}')">Grade</button> <button class="btn btn-ghost btn-sm" onclick="admVoid('${b.id}')">Void</button>`:''}</td></tr>`).join('')}
+  </table></div>`;
+}
+function admGradePrompt(betId){
+  const h=prompt('Final HOME score:'); if(h==null) return;
+  const a=prompt('Final AWAY score:'); if(a==null) return;
+  const b=DB.bets.find(x=>x.id===betId);
+  if(b.status==='open'){ voidBet(b,'Challenge expired unmatched (manual).'); }
+  else settleBet(b,+h,+a,'manual-admin');
+  audit('admin',betId,'manual_grade',`Admin manually graded ${betId}: ${a}-${h}.`);
+  renderAdmin();
+}
+function admVoid(betId){ const b=DB.bets.find(x=>x.id===betId); voidBet(b,'Voided by admin.'); renderAdmin(); }
+function admAudit(){
+  const el=$('#adm-body');
+  const rows=[...DB.audit].reverse().slice(0,200);
+  el.innerHTML=`<p class="small mut">${DB.audit.length} audit entries (immutable — nothing here can be edited or deleted).</p>
+  ${rows.map(a=>`<div class="audit"><b>${fmtTime(a.ts)}</b> <span class="chip chip-graded">${esc(a.kind)}</span> ${a.battleId?`<span class="tiny">${esc(a.battleId)}</span>`:''}<br>${esc(a.text)}</div>`).join('')}`;
+}
+function admDisputes(){
+  const el=$('#adm-body');
+  const open=DB.disputes.filter(d=>d.status==='open');
+  const done=DB.disputes.filter(d=>d.status!=='open').slice(-10).reverse();
+  el.innerHTML=`<h3>Open disputes (${open.length})</h3>
+  ${open.length? open.map(d=>{const b=DB.bets.find(x=>x.id===d.betId);return `<div class="card">
+    <b>${esc(d.byName)}</b> disputes <b>${esc(d.betId)}</b> <span class="tiny mut">${fmtTime(d.filedAt)}</span><br>
+    <div class="small"><b>Reason:</b> ${esc(d.reason)}</div><div class="small"><b>Evidence:</b> ${esc(d.evidence)}</div>
+    ${b&&b.grade?`<div class="tiny mut">Current grade: ${b.grade.result} (${b.grade.homeScore}-${b.grade.awayScore}, ${esc(b.grade.source)})</div>`:''}
+    <div class="row-flex" style="margin-top:8px;flex-wrap:wrap;">
+      <button class="btn btn-navy btn-sm" onclick="admResolve('${d.id}','uphold')">Uphold grade</button>
+      <button class="btn btn-green btn-sm" onclick="admResolve('${d.id}','overturn_win')">Overturn → creator wins</button>
+      <button class="btn btn-green btn-sm" onclick="admResolve('${d.id}','overturn_loss')">Overturn → taker wins</button>
+      <button class="btn btn-ghost btn-sm" onclick="admResolve('${d.id}','overturn_push')">Overturn → push</button>
+      <button class="btn btn-ghost btn-sm" onclick="admResolve('${d.id}','overturn_void')">Overturn → void</button>
+    </div></div>`;}).join('') : '<p class="mut">Queue is clear.</p>'}
+  <h3 style="margin-top:14px;">Recently decided</h3>
+  ${done.map(d=>`<div class="tiny" style="padding:6px 0;border-bottom:1px solid var(--line);">${fmtTime(d.decidedAt)} · ${esc(d.betId)} · <b>${esc(d.decision)}</b> · ${esc(d.adminNote||'')}</div>`).join('')||'<p class="mut">—</p>'}`;
+}
+function admResolve(id, decision){
+  const note=prompt('Admin note (shown in audit):')||'';
+  try{ resolveDispute(id, decision, note); alert('Dispute resolved: '+decision); renderAdmin(); }
+  catch(e){ alert('Error: '+e.message); }
+}
+function admRatings(){
+  const el=$('#adm-body');
+  el.innerHTML=`<div style="overflow-x:auto;"><table><tr><th>Battler</th><th>Credits</th><th>Settled</th><th>Win%</th><th>Disputes lost</th><th>Score</th><th>Tier</th></tr>
+  ${Object.values(DB.users).map(u=>{const s=bettorScore(u.id);const st=bettorStats(u.id);
+    return `<tr><td><b>${esc(u.name)}</b><br><span class="tiny mut">${u.id}</span></td><td>${fmt$(u.credits)}</td>
+    <td>${st.settled}</td><td>${st.settled?Math.round(st.winRate*100)+'%':'—'}</td><td>${st.disputesLost}</td>
+    <td><b>${s.rated?s.score:'Unrated'}</b></td><td>${scoreTier(s.score)}</td></tr>`;}).join('')}
+  </table></div>
+  <p class="tiny mut">Formula: 1000 + 400×(winRate−0.5) + 10×min(settled,50) − 75×disputesLost + 25×min(winStreak,4), ×0.98 per 30 idle days, clamped 100–2000. Rated after 5 settled.</p>`;
+}
+async function admData(){
+  const el=$('#adm-body');
+  el.innerHTML=`<p class="mut">Checking sources…</p>`;
+  let espnOk='?', oddsMsg='';
+  try{ const r=await fetch(CFG.ESPN_BASE+'/sports/football/leagues/nfl/scoreboard?limit=1'); espnOk = r.ok?`✅ OK (${r.status})`:`❌ ${r.status}`; }
+  catch(e){ espnOk='❌ unreachable'; }
+  const hasKey = !!(DB.config.oddsApiKey&&DB.config.oddsApiKey.trim());
+  el.innerHTML=`
+  <div class="card"><h3>Data sources</h3>
+    <div class="small"><b>ESPN public API</b> (games, scores, DraftKings lines) — <b>${espnOk}</b><br><span class="tiny mut">Free, no key. Used for listings, lines, and settlement.</span></div>
+    <div class="small" style="margin-top:10px;"><b>The Odds API</b> (optional consensus sharper) — ${hasKey?'<b>✅ key saved</b>':'<b>not configured</b>'}<br>
+    <span class="tiny mut">Free tier: 500 requests/mo. Get a key at <b>the-odds-api.com</b>, paste below. Without it the app uses ESPN lines, with demo lines as labeled fallback.</span></div>
+    <label>The Odds API key</label>
+    <input id="oak" type="text" placeholder="paste key here" value="${esc(DB.config.oddsApiKey||'')}">
+    <div class="row-flex"><button class="btn btn-navy btn-sm" onclick="saveOddsKey()">Save key</button>
+    <button class="btn btn-ghost btn-sm" onclick="testOddsKey()">Test key</button></div><div id="oak-msg"></div>
+    <label>Admin password</label>
+    <div class="row-flex"><input id="napw" type="text" placeholder="new password" style="margin:0;"><button class="btn btn-navy btn-sm" onclick="changePw()">Change</button></div>
+  </div>
+  <div class="card"><h3>Settlement</h3>
+    <p class="small mut">Bets auto-grade from ESPN finals when anyone taps "Check finals" on My Bets. Push = stakes returned. Postponed/cancelled or no result 26h after start = void, stakes returned. Every grade writes an immutable audit entry.</p>
+    <button class="btn btn-ghost btn-sm" onclick="gradeOpenBets(true)">↻ Run grading now</button>
+  </div>`;
+}
+function saveOddsKey(){ DB.config.oddsApiKey=$('#oak').value.trim(); saveDB(); $('#oak-msg').innerHTML=`<div class="okbox">Key saved.</div>`; audit('admin',null,'config','The Odds API key updated.'); }
+async function testOddsKey(){
+  const k=$('#oak').value.trim()||DB.config.oddsApiKey;
+  if(!k){ $('#oak-msg').innerHTML=`<div class="errbox">Paste a key first.</div>`; return; }
+  try{ const r=await fetch(`${CFG.ODDS_API_BASE}/sports/?apiKey=${encodeURIComponent(k)}`);
+    const d=await r.json();
+    $('#oak-msg').innerHTML = r.ok ? `<div class="okbox">✅ Key works — ${d.length} sports available.</div>` : `<div class="errbox">❌ ${esc(d.message||r.status)}</div>`;
+  }catch(e){ $('#oak-msg').innerHTML=`<div class="errbox">Request failed: ${esc(e.message)}</div>`; }
+}
+function changePw(){ const v=$('#napw').value.trim(); if(!v) return; DB.config.adminPw=v; saveDB(); audit('admin',null,'config','Admin password changed.'); alert('Password changed.'); }
+function admCredits(){
+  const el=$('#adm-body');
+  // invariant: sum(users) + house == sum(grants)
+  const uSum = Object.values(DB.users).reduce((a,u)=>a+u.credits,0);
+  const grants = DB.ledger.filter(e=>e.type==='grant').reduce((a,e)=>a+e.amount,0);
+  const reversalsNet = 0; // reversals are zero-sum by construction
+  const expect = grants;
+  const actual = +(uSum + DB.houseBalance).toFixed(2);
+  const ok = Math.abs(expect-actual) < 0.01;
+  el.innerHTML=`<div class="card"><h3>💰 Ledger health</h3>
+    <div class="small">User balances total: <b>${fmt$(uSum)}</b><br>House balance: <b>${fmt$(DB.houseBalance)}</b><br>
+    Credits ever issued: <b>${fmt$(grants)}</b></div>
+    ${ok?`<div class="okbox">✅ Invariant holds: users + house = issued (${fmt$(actual)}).</div>`:`<div class="errbox">❌ MISMATCH: expected ${fmt$(expect)}, got ${fmt$(actual)}. Investigate audit log.</div>`}
+  </div>
+  <div class="card"><h3>Grant demo credits</h3>
+    <label>Battler</label><select id="g-user">${Object.values(DB.users).map(u=>`<option value="${u.id}">${esc(u.name)} (${fmt$(u.credits)})</option>`).join('')}</select>
+    <label>Amount</label><input id="g-amt" type="number" value="50" min="1">
+    <button class="btn btn-green btn-sm" style="margin-top:8px;" onclick="grantCredits()">Grant</button><div id="g-msg"></div>
+  </div>
+  <div class="card"><h3>Recent ledger</h3>
+    <div style="max-height:300px;overflow:auto;">${[...DB.ledger].reverse().slice(0,50).map(e=>`<div class="tiny" style="padding:4px 0;border-bottom:1px solid var(--line);">${fmtTime(e.ts)} · ${esc(DB.users[e.userId]?.name||'house')} · <b>${esc(e.type)}</b> · <b>${e.amount>=0?'+':''}${fmt$(e.amount)}</b> → ${e.balanceAfter!=null?fmt$(e.balanceAfter):'house'} <span class="mut">${esc(e.note)}</span></div>`).join('')}</div>
+  </div>`;
+}
+function grantCredits(){
+  const id=$('#g-user').value, amt=+$('#g-amt').value;
+  if(!id||!(amt>0)) return;
+  postLedger(id,null,'grant',amt,'Admin grant');
+  audit('admin',null,'grant',`Granted ${fmt$(amt)} demo credits to ${DB.users[id].name}.`);
+  $('#g-msg').innerHTML=`<div class="okbox">Granted ${fmt$(amt)}.</div>`; admCredits();
+}
+
+/* ---------------- init ---------------- */
+route();
+// auto-grade shortly after load, then every 5 minutes while open
+setTimeout(()=>gradeOpenBets(false), 4000);
+setInterval(()=>gradeOpenBets(false), 5*60*1000);
+</script>
+</body>
+</html>
