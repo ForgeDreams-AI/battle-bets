@@ -115,7 +115,7 @@ const CFG = {
     {id:'ncaam', sport:'basketball', label:'College BB'},
     {id:'mlb',   sport:'baseball',   label:'MLB'},
     {id:'nhl',   sport:'hockey',     label:'NHL'},
-    {id:'mls',   sport:'soccer',     label:'MLS'},
+    {id:'usa.1', sport:'soccer',     label:'MLS'},
   ],
   ESPN_BASE: 'https://site.api.espn.com/apis/site/v2/sports',
   ODDS_API_BASE: 'https://api.the-odds-api.com/v4',
@@ -390,7 +390,7 @@ function settleBetForced(bet, res){
   bet.status='settled'; bet.settledAt=new Date().toISOString();
   recordSettled(bet,res); saveDB();
 }
-/*__CHUNK2__*/
+
 /* ============================================================
    DATA LAYER — real sports data
    Primary: ESPN public API (free, no key, CORS-open)
@@ -452,7 +452,7 @@ async function oddsApiLines(eventHome, eventAway, leagueId){
   // Optional enhancement: The Odds API free tier (500 req/mo). Key pasted in Admin → Data.
   const key = DB.config.oddsApiKey && DB.config.oddsApiKey.trim();
   if(!key) return null;
-  const sportKey = {nfl:'americanfootball_nfl',nba:'basketball_nba',mlb:'baseball_mlb',nhl:'icehockey_nhl',ncaaf:'americanfootball_ncaaf',ncaam:'basketball_ncaab',mls:'soccer_usa_mls'}[leagueId];
+  const sportKey = {nfl:'americanfootball_nfl',nba:'basketball_nba',mlb:'baseball_mlb',nhl:'icehockey_nhl',ncaaf:'americanfootball_ncaaf',ncaam:'basketball_ncaab',"usa.1":'soccer_usa_mls'}[leagueId];
   if(!sportKey) return null;
   const ck='oa_'+leagueId; const hit=cached(ck, 10*60000); if(hit) return hit;
   try{
@@ -543,7 +543,7 @@ async function lineMovedWarning(bet){
   const thresh = bet.market==='spread' ? 1.5 : 2.0;
   return move >= thresh ? {from:bet.consensusLine, to:ref, move:+move.toFixed(1)} : null;
 }
-/*__CHUNK3__*/
+
 /* ============================================================
    UI — hash router + screens
    ============================================================ */
@@ -863,7 +863,7 @@ async function acceptFromLink(payload){
     location.hash='#/bets'; route();
   }catch(err){ alert(err.message==='insufficient'?'Not enough demo credits.':err.message); }
 }
-/*__CHUNK4__*/
+
 /* ---------- My Bets ---------- */
 function myBets(){ const u=me(); return DB.bets.filter(b=>b.creatorId===u.id||b.takerId===u.id).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)); }
 function renderMyBets(){
@@ -1012,7 +1012,7 @@ async function gradeOpenBets(manual){
     if(manual) route();
   }finally{ grading=false; }
 }
-/*__CHUNK5__*/
+
 /* ============================================================
    ADMIN — login-protected backside for Anthony
    ============================================================ */
